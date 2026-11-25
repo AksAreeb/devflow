@@ -82,6 +82,18 @@ test('editing code after a run makes the evidence stale and blocks the gate', ()
   assert.equal(gate.code, 1);
 });
 
+test('a test shown failing first passes by failing, and does not go stale', () => {
+  const { dir, devflow } = repo();
+  devflow('init', 't', '--tier', '1');
+  assert.equal(devflow('run', '8', '--label', 'red', '--expect-fail', ...fail).code, 0);
+  assert.equal(devflow('run', '8', '--label', 'red-wrong', '--expect-fail', ...pass).code, 1, 'a test that passes before the code exists proves nothing');
+  assert.match(devflow('status').out, /8\s+implement\s+failed/);
+  devflow('run', '8', '--label', 'red-wrong', '--expect-fail', ...fail);
+  fs.writeFileSync(path.join(dir, 'app.txt'), 'implemented\n');
+  devflow('run', '8', '--label', 'green', ...pass);
+  assert.match(devflow('status').out, /8\s+implement\s+passed/, 'the red runs predate the code and still count');
+});
+
 test('judged steps need an artefact, script steps cannot be recorded by hand', () => {
   const { dir, devflow } = repo();
   devflow('init', 't', '--tier', '1');

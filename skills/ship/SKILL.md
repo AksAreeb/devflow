@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Take a verified slice to a review-ready branch: audit the evidence ledger, run the launch readiness checklist, check the diff is under 500 lines, commit, report exactly what to test, and stop for the user's go-ahead before any PR is opened. Use whenever work is done and the user says ship, wrap up, commit, push, open or prepare a PR, or when the devflow pipeline reaches steps 23 and 24.
+description: Take a verified slice to a review-ready branch. Audits the evidence ledger, runs the launch readiness checklist, checks the diff is under 500 lines, commits, reports exactly what to test, and stops for the user's go-ahead before any PR is opened. Use whenever work is done and the user says ship, wrap up, commit, push, open or prepare a PR, or when the devflow pipeline reaches steps 23 and 24.
 ---
 
 # Launch readiness and ship (steps 23 and 24)
