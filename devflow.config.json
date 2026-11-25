@@ -1,0 +1,5 @@
+{
+  "checks": {
+    "test": "node --test scripts/run.test.mjs"
+  }
+}

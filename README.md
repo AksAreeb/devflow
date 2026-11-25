@@ -30,6 +30,9 @@ Until a stage skill exists, the orchestrator falls back to the general skills na
 ```
 .claude-plugin/plugin.json   plugin manifest
 skills/<name>/SKILL.md       one folder per skill
+scripts/run.mjs              capture script: runs checks and writes the ledger
+scripts/steps.json           the 26 steps, their minimum tier and how each is decided
+docs/plan.md                 the full build plan
 hooks/                       hard stops (slice 5)
 evals/                       golden tasks for testing the workflow itself (slice 5)
 ```
@@ -47,3 +50,17 @@ Then ask for a change and mention devflow, or invoke `/devflow:flow` directly.
 ## Working files in target repos
 
 The pipeline writes its spec, plan and evidence to `.devflow/<task-slug>/` in the repo being changed. That folder is added to `.git/info/exclude`, so it never lands in a commit or counts toward PR size.
+
+Each target repo also gets a `devflow.config.json` naming its own commands, which keeps the pipeline independent of the stack:
+
+```json
+{ "checks": { "test": "npm test", "lint": "npm run lint", "typecheck": "npx tsc --noEmit", "build": "npm run build" } }
+```
+
+## Developing devflow
+
+The capture script needs Node 20 or later and has no dependencies. Run its tests with:
+
+```
+node --test scripts/run.test.mjs
+```
