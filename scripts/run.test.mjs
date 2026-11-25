@@ -57,14 +57,17 @@ test('run records the command, exit code and a log, and passes the failure on', 
 
 test('a step with required checks stays pending until every check has run', () => {
   const { dir, devflow } = repo();
+  const ok = 'node -e "process.exit(0)"';
   fs.writeFileSync(path.join(dir, 'devflow.config.json'), JSON.stringify({
-    checks: { test: 'node -e "process.exit(0)"', lint: 'node -e "process.exit(0)"', typecheck: 'node -e "process.exit(0)"', build: 'node -e "process.exit(0)"' },
+    checks: { test: ok, typecheck: ok, build: ok, lint: null },
   }));
   devflow('init', 't', '--tier', '1');
   devflow('run', '11', '--check', 'test');
   assert.match(devflow('status').out, /11\s+regression\s+pending/);
-  for (const check of ['lint', 'typecheck', 'build']) devflow('run', '11', '--check', check);
-  assert.match(devflow('status').out, /11\s+regression\s+passed/);
+  for (const check of ['typecheck', 'build']) devflow('run', '11', '--check', check);
+  assert.match(devflow('status').out, /11\s+regression\s+pending/, 'the built-in integrity check is still owed');
+  assert.equal(devflow('run', '11', '--builtin', 'integrity').code, 0);
+  assert.match(devflow('status').out, /11\s+regression\s+passed/, 'lint is declared absent with null, so it is not owed');
   assert.equal(devflow('run', '11', '--check', 'coverage').code, 2, 'unknown check is an error');
 });
 
@@ -100,7 +103,7 @@ test('marking a step needs a reason, and the gate is clean only when nothing is 
   devflow('run', '8', '--label', 'green', ...pass);
   devflow('mark', '10', 'n/a', '--reason', 'docs only');
   devflow('mark', '11', 'not-run', '--reason', 'no test suite yet');
-  devflow('run', '20', '--label', 'secrets', ...pass);
+  for (const check of ['secrets', 'deps', 'newdeps']) assert.equal(devflow('run', '20', '--builtin', check).code, 0);
   const gate = devflow('status', '--gate');
   assert.equal(gate.code, 0, gate.out);
   assert.match(gate.out, /Not run, to be stated in the ship report: 11/);

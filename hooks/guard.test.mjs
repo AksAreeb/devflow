@@ -64,7 +64,8 @@ test('opening a pull request is denied until the ledger is clean, then asks', ()
 
   fs.writeFileSync(path.join(dir, '.devflow', 't', 'note.md'), 'evidence\n');
   for (const step of ['1', '10', '24']) devflow('record', step, 'passed', '--artefact', '.devflow/t/note.md');
-  for (const step of ['8', '20']) devflow('run', step, '--label', 'ok', ...pass);
+  devflow('run', '8', '--label', 'ok', ...pass);
+  for (const check of ['secrets', 'deps', 'newdeps']) devflow('run', '20', '--builtin', check);
   devflow('mark', '11', 'not-run', '--reason', 'no suite');
   const ready = bash('gh pr create --fill');
   assert.equal(ready.permissionDecision, 'ask');

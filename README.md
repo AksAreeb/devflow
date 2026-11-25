@@ -34,6 +34,7 @@ skills/<name>/SKILL.md       one folder per skill
 hooks/hooks.json             hook registration
 hooks/guard.mjs              the hard stops: PR gate, no merges, protected files
 scripts/run.mjs              capture script: runs checks and writes the ledger
+scripts/scan.mjs             built-in checks: secrets, dependencies, test integrity
 scripts/steps.json           the 26 steps, their minimum tier and how each is decided
 docs/plan.md                 the full build plan
 hooks/                       hard stops (slice 5)
@@ -57,15 +58,32 @@ The pipeline writes its spec, plan and evidence to `.devflow/<task-slug>/` in th
 Each target repo also gets a `devflow.config.json` naming its own commands, which keeps the pipeline independent of the stack:
 
 ```json
-{ "checks": { "test": "npm test", "lint": "npm run lint", "typecheck": "npx tsc --noEmit", "build": "npm run build" } }
+{
+  "checks": { "test": "npm test", "lint": "npm run lint", "typecheck": "npx tsc --noEmit", "build": "npm run build" },
+  "approvedDependencies": ["zod"],
+  "protected": ["src/billing/**"]
+}
 ```
+
+Set a check to `null` when the repo has no such thing, for example `"build": null`.
+
+## Built-in checks
+
+These need no setup and compare the working tree against the base branch:
+
+| Check | Step | Fails when |
+|-------|------|------------|
+| `secrets` | 20 | An added line looks like a credential. Basic patterns only; add gitleaks as a config check for depth |
+| `deps` | 20 | `npm audit`, `pnpm audit` or `pip-audit` reports a high or critical vulnerability |
+| `newdeps` | 20 | A new direct dependency is not in `approvedDependencies`, or dependencies changed with no lockfile change |
+| `integrity` | 11 | A test was deleted, skipped or had assertions changed, a snapshot changed, or a lint or type suppression was added |
 
 ## Developing devflow
 
 The scripts need Node 20 or later and have no dependencies. Run the tests with:
 
 ```
-node --test scripts/run.test.mjs hooks/guard.test.mjs
+node --test scripts/run.test.mjs scripts/scan.test.mjs hooks/guard.test.mjs
 ```
 
 ## Hard stops
