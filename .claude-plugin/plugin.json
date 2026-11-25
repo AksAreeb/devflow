@@ -1,0 +1,5 @@
+{
+  "name": "devflow",
+  "version": "0.1.0",
+  "description": "A gated quality pipeline for agentic coding: spec, plan, build, verify, harden, review, ship. Risk tiers decide which steps run, and every step must leave evidence."
+}
