@@ -15,17 +15,26 @@ All working files live in `.devflow/<task-slug>/` in the target repo:
 
 ```
 .devflow/<task-slug>/
-├── ledger.md      one row per applicable step: status and evidence path
+├── ledger.json    written by the capture script, never by hand
 ├── spec.md
 ├── plan.md
-└── evidence/      NN-step-name.md plus any screenshots or raw output
+└── evidence/      one log per captured command, plus screenshots and notes
 ```
 
-On first use in a repo, add `.devflow/` to `.git/info/exclude` so these files stay out of commits and out of the PR size count.
+The ledger is kept by the plugin's capture script, `scripts/run.mjs`, so that it records what happened and not what you believe happened. Do not edit `ledger.json` directly. Call the script as `node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" <command>`:
 
-Create `ledger.md` when the tier is set, with one row for every step that applies. Each row has a status: `pending`, `passed`, `failed`, `not run` (with the reason) or `n/a` (with the reason). Update it as you go, because the ledger is what the user reads to know where things stand and what the Ship step audits.
+| Command | Use it to |
+|---------|-----------|
+| `init <task-slug> --tier <1\|2\|3>` | Create the ledger once the tier is set. Also keeps `.devflow/` out of commits. |
+| `run <step> --check <name>` | Run a check named in the repo's `devflow.config.json` (for example `test`, `lint`, `typecheck`, `build`) and record its exit code and output. |
+| `run <step> --label <name> -- <command>` | Run and record any other command for a step. |
+| `record <step> <passed\|failed> --artefact <path>` | Give the verdict for a step that needs judgement, pointing at the evidence file. |
+| `mark <step> <n/a\|not-run> --reason "<why>"` | Say a step does not apply, or could not run. |
+| `status` | Show where every step stands. Add `--gate` to check whether the slice is ready to ship. |
 
-If a `.devflow/<task-slug>/` folder already exists for this task, resume from its ledger instead of starting over.
+A step's state is worked out from exit codes, not typed in. A captured run only counts for the exact code it ran against: edit any file afterwards and the step shows as `stale` until it is run again. That is deliberate, since a test run from before a change says nothing about the change.
+
+If `.devflow/current` already points at this task, resume from `status` instead of starting over.
 
 ## Running order
 
@@ -40,11 +49,11 @@ Tier 1 changes skip Plan: confirm the spec in one line, build, verify, review, s
 
 ## Three rules that make the gates real
 
-**Evidence, or it did not happen.** A step passes only when its evidence file exists and shows the check actually ran: the command and its output, a screenshot, a query plan, a number against a budget. "Looks fine" is not evidence. This matters because a later reader, human or agent, cannot tell a check that passed from a check that was skipped unless the proof is attached.
+**Evidence, or it did not happen.** A step passes only when the capture script recorded it: a command that exited zero, or a verdict tied to an evidence file such as a screenshot, a query plan or a number against a budget. Run checks through the script, not directly, or they leave no record. "Looks fine" is not evidence. This matters because a later reader, human or agent, cannot tell a check that passed from a check that was skipped unless the proof is attached.
 
 **The builder does not grade its own work.** Run steps 10 to 22 in a fresh subagent. Give it the spec, the diff and the applicable step list, and nothing about how you built it or what you think works. A verifier that has seen your reasoning tends to confirm it. When the verifier reports a failure, fix it in the main session, then send the fix back for a fresh check rather than marking it passed yourself.
 
-**Never round up.** If a step could not run (no staging environment, skill not built yet, tool missing), record `not run` with the reason and carry it into the ship report. A pipeline that quietly skips steps is worse than no pipeline, because the user believes they are covered.
+**Never round up.** If a step could not run (no staging environment, skill not built yet, tool missing), mark it `not-run` with the reason and carry it into the ship report. A pipeline that quietly skips steps is worse than no pipeline, because the user believes they are covered.
 
 ## Steps whose skill is not built yet
 
