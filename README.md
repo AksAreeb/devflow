@@ -21,7 +21,8 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:design` | 3 to 6 | Slice 2, not built |
 | `devflow:qa` | 10 to 17 | Slice 3, not built |
 | `devflow:harden` | 18 to 21 | Slice 4, not built |
-| Hooks and golden-task evals | Hard stops, workflow evals | Slice 5, not built |
+| Hooks | Hard stops | Built |
+| Golden-task evals | Workflow evals | Not built |
 
 Until a stage skill exists, the orchestrator falls back to the general skills named in the pipeline table, or records the step as not run. It never reports an unbuilt step as passed.
 
@@ -30,6 +31,8 @@ Until a stage skill exists, the orchestrator falls back to the general skills na
 ```
 .claude-plugin/plugin.json   plugin manifest
 skills/<name>/SKILL.md       one folder per skill
+hooks/hooks.json             hook registration
+hooks/guard.mjs              the hard stops: PR gate, no merges, protected files
 scripts/run.mjs              capture script: runs checks and writes the ledger
 scripts/steps.json           the 26 steps, their minimum tier and how each is decided
 docs/plan.md                 the full build plan
@@ -59,8 +62,23 @@ Each target repo also gets a `devflow.config.json` naming its own commands, whic
 
 ## Developing devflow
 
-The capture script needs Node 20 or later and has no dependencies. Run its tests with:
+The scripts need Node 20 or later and have no dependencies. Run the tests with:
 
 ```
-node --test scripts/run.test.mjs
+node --test scripts/run.test.mjs hooks/guard.test.mjs
 ```
+
+## Hard stops
+
+Four rules are enforced by hooks, so they hold even if an agent ignores the skills:
+
+| Rule | Behaviour |
+|------|-----------|
+| Opening a pull request | Refused until the ledger is clean, then asks you to confirm |
+| Merging | Always refused, locally and through `gh` |
+| Editing a committed test, snapshot, CI workflow or `devflow.config.json` during a task | Asks you first |
+| Editing `ledger.json` by hand | Always refused |
+
+A repo can protect more paths by adding a `protected` list of globs to `devflow.config.json`. Stopping with failed or stale steps gets one reminder, and after the conversation is compacted the ledger state is put back in context.
+
+Limits to know about: the file protection covers the editing tools, not shell commands such as `sed`, and whether the confirmation prompt still appears in permission-bypass mode has not been tested.
