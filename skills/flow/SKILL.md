@@ -27,10 +27,13 @@ The ledger is kept by the plugin's capture script, `scripts/run.mjs`, so that it
 |---------|-----------|
 | `init <task-slug> --tier <1\|2\|3>` | Create the ledger once the tier is set. Also keeps `.devflow/` out of commits. |
 | `run <step> --check <name>` | Run a check named in the repo's `devflow.config.json` (for example `test`, `lint`, `typecheck`, `build`) and record its exit code and output. |
+| `run <step> --builtin <name>` | Run one of devflow's own checks: `secrets`, `deps` and `newdeps` for step 20, `integrity` for step 11. |
 | `run <step> --label <name> -- <command>` | Run and record any other command for a step. |
 | `record <step> <passed\|failed> --artefact <path>` | Give the verdict for a step that needs judgement, pointing at the evidence file. |
 | `mark <step> <n/a\|not-run> --reason "<why>"` | Say a step does not apply, or could not run. |
 | `status` | Show where every step stands. Add `--gate` to check whether the slice is ready to ship. |
+
+Steps 11 and 20 run on every tier and each owes several checks: step 11 needs `test`, `lint`, `typecheck`, `build` and `integrity`, and step 20 needs `secrets`, `deps` and `newdeps`. A repo that has no linter or build declares that with `null` in its config. A new dependency passes only once the user has approved it by name in `approvedDependencies`.
 
 A step's state is worked out from exit codes, not typed in. A captured run only counts for the exact code it ran against: edit any file afterwards and the step shows as `stale` until it is run again. That is deliberate, since a test run from before a change says nothing about the change.
 

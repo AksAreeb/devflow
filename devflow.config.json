@@ -1,5 +1,8 @@
 {
   "checks": {
-    "test": "node --test scripts/run.test.mjs hooks/guard.test.mjs"
+    "test": "node --test scripts/run.test.mjs scripts/scan.test.mjs hooks/guard.test.mjs",
+    "lint": null,
+    "typecheck": null,
+    "build": null
   }
 }

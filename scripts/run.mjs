@@ -4,6 +4,7 @@
 //
 //   init <task> --tier <1|2|3>              create the ledger for a task
 //   run <step> --check <name>               run a check from devflow.config.json
+//   run <step> --builtin <name>             run one of devflow's own checks (scan.mjs)
 //   run <step> --label <name> -- <command>  run any command
 //   record <step> <passed|failed> --artefact <path>   verdict for a judged step
 //   mark <step> <n/a|not-run> --reason <text>         step that will not run
@@ -78,16 +79,22 @@ function option(args, name) {
   return i === -1 ? undefined : args[i + 1];
 }
 
+function loadConfig() {
+  const file = path.join(root, 'devflow.config.json');
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+}
+
 // Works out a step's state from what was recorded. Nothing here trusts a
 // status the agent typed: script steps are judged by exit codes and tree hash.
-function evaluate(entry, tree) {
+function evaluate(entry, tree, config) {
   if (entry.mark) return entry.mark;
   const results = [];
   if (entry.kind !== 'judged') {
-    const required = STEPS.find((s) => s.n === entry.step).checks ?? [];
+    // A repo with no linter, say, declares that with "lint": null in its config.
+    const required = (STEPS.find((s) => s.n === entry.step).checks ?? []).filter((c) => config.checks?.[c] !== null);
     const labels = entry.runs.map((r) => r.label);
-    if (!entry.runs.length || required.some((c) => !labels.includes(c))) results.push('pending');
-    else if (entry.runs.some((r) => r.exitCode !== 0)) results.push('failed');
+    if (entry.runs.some((r) => r.exitCode !== 0)) results.push('failed');
+    else if (!entry.runs.length || required.some((c) => !labels.includes(c))) results.push('pending');
     else if (entry.runs.some((r) => r.tree !== tree)) results.push('stale');
     else results.push('passed');
   }
@@ -123,17 +130,18 @@ const commands = {
     if (entry.kind === 'judged') die(`step ${entry.step} needs a verdict, not a command. Use: record`);
     const split = rest.indexOf('--');
     const check = option(rest, '--check');
+    const builtin = option(rest, '--builtin');
     let command;
     if (check) {
-      const configFile = path.join(root, 'devflow.config.json');
-      const config = fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile, 'utf8')) : {};
-      command = config.checks?.[check];
+      command = loadConfig().checks?.[check];
       if (!command) die(`no "${check}" command in devflow.config.json. Add it under "checks".`);
+    } else if (builtin) {
+      command = `node "${path.join(here, 'scan.mjs')}" ${builtin}`;
     } else if (split !== -1) {
       command = rest.slice(split + 1).join(' ');
     }
-    const label = check ?? option(rest, '--label');
-    if (!command || !label) die('use: run <step> --check <name>  or  run <step> --label <name> -- <command>');
+    const label = check ?? builtin ?? option(rest, '--label');
+    if (!command || !label) die('use: run <step> --check <name> | --builtin <name> | --label <name> -- <command>');
 
     const tree = treeHash();
     const result = spawnSync(command, { shell: true, cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -179,7 +187,8 @@ const commands = {
   status(args) {
     const { ledger } = loadLedger();
     const tree = treeHash();
-    const rows = ledger.entries.map((e) => ({ ...e, state: evaluate(e, tree) }));
+    const config = loadConfig();
+    const rows = ledger.entries.map((e) => ({ ...e, state: evaluate(e, tree, config) }));
     console.log(`Task "${ledger.task}", tier ${ledger.tier}`);
     for (const r of rows) {
       console.log(`${String(r.step).padStart(2)}  ${r.name.padEnd(18)} ${r.state}${r.reason ? `  (${r.reason})` : ''}`);
