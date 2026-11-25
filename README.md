@@ -18,6 +18,7 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:spec` | 1 to 2 | Slice 1 |
 | `devflow:plan` | 7 | Slice 1 |
 | `devflow:ship` | 23 to 24 | Slice 1 |
+| `devflow:build` | 8 to 9 | Built |
 | `devflow:design` | 3 to 6 | Slice 2, not built |
 | `devflow:qa` | 10 to 17 | Slice 3, not built |
 | `devflow:harden` | 18 to 21 | Slice 4, not built |

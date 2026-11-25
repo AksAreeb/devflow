@@ -23,8 +23,8 @@ Assign the highest tier that any part of the change triggers. When unsure betwee
 | 5 | Privacy review | 3 | personal data touched | Data, purpose, storage, retention and access listed | `devflow:design` (none) |
 | 6 | Threat model | 3 | new surface or trust boundary | Abuse cases listed with mitigations | `devflow:design` (`threat-modeling:model-threats`) |
 | 7 | Plan | 2 | always | Slices under 500 lines, flag and rollback plans | `devflow:plan` |
-| 8 | Implement | 1 | always | One slice, tests alongside, flagged if incomplete | main session |
-| 9 | Best-practices pass | 2 | always | Stack conventions followed, no new smells | (`code-quality:review-code`) |
+| 8 | Implement | 1 | always | New tests shown failing, then passing; flagged if incomplete | `devflow:build` |
+| 9 | Best-practices pass | 2 | always | Formatter clean; clone, unused-code and complexity checks pass where configured | `devflow:build` |
 | 10 | Functional QA | 1 | always | Every acceptance criterion checked in the running app | `devflow:qa` (`run`) |
 | 11 | Regression | 1 | always | Tests, lint, types and build pass; changed lines covered; flaky tests quarantined and logged, never retried silently | `devflow:qa` (none) |
 | 12 | Mutation testing | 2 | logic changed | Mutants in changed code are killed, survivors explained | `devflow:qa` (none) |

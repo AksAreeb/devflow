@@ -6,6 +6,7 @@
 //   run <step> --check <name>               run a check from devflow.config.json
 //   run <step> --builtin <name>             run one of devflow's own checks (scan.mjs)
 //   run <step> --label <name> -- <command>  run any command
+//       add --expect-fail before the -- when the command is meant to fail
 //   record <step> <passed|failed> --artefact <path>   verdict for a judged step
 //   mark <step> <n/a|not-run> --reason <text>         step that will not run
 //   status [--gate]                         show the ledger; --gate exits 1 if not clean
@@ -93,9 +94,11 @@ function evaluate(entry, tree, config) {
     // A repo with no linter, say, declares that with "lint": null in its config.
     const required = (STEPS.find((s) => s.n === entry.step).checks ?? []).filter((c) => config.checks?.[c] !== null);
     const labels = entry.runs.map((r) => r.label);
-    if (entry.runs.some((r) => r.exitCode !== 0)) results.push('failed');
+    // A run made with --expect-fail (a new test shown failing before the code
+    // exists) passes by failing, and is a record of that moment, so it never goes stale.
+    if (entry.runs.some((r) => (r.exitCode !== 0) !== Boolean(r.expectFail))) results.push('failed');
     else if (!entry.runs.length || required.some((c) => !labels.includes(c))) results.push('pending');
-    else if (entry.runs.some((r) => r.tree !== tree)) results.push('stale');
+    else if (entry.runs.some((r) => !r.expectFail && r.tree !== tree)) results.push('stale');
     else results.push('passed');
   }
   if (entry.kind !== 'script') results.push(entry.verdict ?? 'pending');
@@ -150,12 +153,14 @@ const commands = {
     const log = `evidence/${String(entry.step).padStart(2, '0')}-${label}.log`;
     fs.writeFileSync(path.join(base, ledger.task, log), `$ ${command}\n${output}\n[exit ${exitCode}]\n`);
     entry.runs = entry.runs.filter((r) => r.label !== label);
-    entry.runs.push({ label, command, exitCode, tree, log, at: new Date().toISOString() });
+    const expectFail = rest.slice(0, split === -1 ? undefined : split).includes('--expect-fail');
+    entry.runs.push({ label, command, exitCode, expectFail, tree, log, at: new Date().toISOString() });
     entry.mark = null;
     save(file, ledger);
+    const asExpected = (exitCode !== 0) === expectFail;
     console.log(output.split(/\r?\n/).slice(-40).join('\n'));
-    console.log(`devflow: step ${entry.step} "${label}" exited ${exitCode}. Log: .devflow/${ledger.task}/${log}`);
-    process.exit(exitCode === 0 ? 0 : 1);
+    console.log(`devflow: step ${entry.step} "${label}" exited ${exitCode}${expectFail ? (asExpected ? ', failing as expected' : ', but it was expected to fail') : ''}. Log: .devflow/${ledger.task}/${log}`);
+    process.exit(asExpected ? 0 : 1);
   },
 
   record([stepArg, verdict, ...rest]) {
