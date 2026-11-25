@@ -63,4 +63,11 @@ Tier 1 changes skip Plan: confirm the spec in one line, build, verify, review, s
 
 Stop and wait for the user at three points: after the spec, after the plan, and before a PR is opened. Approval at one gate does not carry to the next. Between gates, keep working without checking in.
 
+Four rules are enforced by the plugin's hooks, whatever this skill says, so plan around them instead of trying them:
+
+- `gh pr create` is refused while `status --gate` is not clean. Once clean, it asks the user.
+- Merging is always refused, locally and on GitHub.
+- Editing a committed test, snapshot, CI workflow or `devflow.config.json` during a task asks the user first. If a test conflicts with the spec, stop and report the conflict; do not change the test to get a pass.
+- `ledger.json` cannot be edited directly.
+
 The user can override the tier or waive a step at any time. Record the override and who made it in the ledger, then follow it.

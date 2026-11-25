@@ -1,5 +1,5 @@
 {
   "checks": {
-    "test": "node --test scripts/run.test.mjs"
+    "test": "node --test scripts/run.test.mjs hooks/guard.test.mjs"
   }
 }
