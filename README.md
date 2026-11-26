@@ -22,6 +22,7 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:design` | 3 to 6 | Slice 2, not built |
 | `devflow:qa` | 10 to 14, 22 | Built |
 | `devflow:ui` | 15 to 17 | Built |
+| `devflow:repo` | Repo rules: policy, agent files, branch policy, docs layout | Built |
 | `devflow:verifier` agent | Judges 10 and 22 | Built |
 | `devflow:harden` | 18 to 20 | Built (21 not built) |
 | Hooks | Hard stops | Built |
@@ -39,6 +40,7 @@ hooks/hooks.json             hook registration
 hooks/guard.mjs              the hard stops: PR gate, no merges, protected files
 scripts/run.mjs              capture script: runs checks and writes the ledger
 scripts/scan.mjs             built-in checks: secrets, dependencies, test integrity
+scripts/policy.mjs           generates agent guide, contributing file and branch workflow from the policy
 scripts/steps.json           the 26 steps, their minimum tier and how each is decided
 docs/plan.md                 the full build plan
 hooks/                       hard stops (slice 5)
@@ -90,7 +92,7 @@ These need no setup and compare the working tree against the base branch:
 The scripts need Node 20 or later and have no dependencies. Run the tests with:
 
 ```
-node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs
+node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs scripts/policy.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs
 ```
 
 ## Repo rules
@@ -121,6 +123,13 @@ The hooks then enforce it for any agent working in the repo:
 | A pull request | Refused unless it targets the integration branch. Only the integration branch and hotfixes may target the release branch |
 | A push straight to the integration or release branch | Refused |
 | A commit subject | Refused if the policy names Conventional Commits and the subject does not follow them |
+
+The files people and agents read are generated from the same policy. Existing files are never overwritten:
+
+```
+node scripts/policy.mjs            # shows what would be created
+node scripts/policy.mjs --write    # creates the missing files
+```
 
 And the written rules can be checked against the policy, in CI or by hand:
 
