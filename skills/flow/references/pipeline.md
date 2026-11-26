@@ -30,9 +30,9 @@ Assign the highest tier that any part of the change triggers. When unsure betwee
 | 12 | Mutation testing | 2 | logic changed | Mutants in changed code are killed, survivors explained | `devflow:qa` |
 | 13 | Property and fuzz tests | 3 | parsers, validators, money maths | Properties stated and exercised | `devflow:qa` (none) |
 | 14 | Contract tests | 3 | change crosses a service boundary | Consumer and provider agree | `devflow:qa` (none) |
-| 15 | UI stress | 2 | UI changed | Survives long text, empty and huge data, slow network, rapid input, narrow widths, dark mode | `devflow:qa` (none) |
-| 16 | Visual regression | 2 | UI changed | Screenshot diffs reviewed against baseline | `devflow:qa` (none) |
-| 17 | Accessibility | 2 | UI changed | WCAG 2.1 AA: keyboard, contrast, screen reader | `devflow:qa` (`accessibility-testing:wcag-audit`) |
+| 15 | UI stress | 2 | UI changed | Zero Blocking findings on the worst-case fixture; no sideways scroll at 320 pixels; one record from a double submit | `devflow:ui`, judged by `devflow:verifier` |
+| 16 | Visual regression | 2 | UI changed | Zero unapproved screenshot diffs | `devflow:ui` |
+| 17 | Accessibility | 2 | UI changed | WCAG 2.2 AA scan clean, and the manual keyboard and screen reader pass done | `devflow:ui`, judged by `devflow:verifier` |
 | 18 | Backend stress | 3 | server code changed | p95 latency and error rate within budget under load and spike | `devflow:harden` (`performance-testing:load-test-design`) |
 | 19 | Database optimisation | 3 | queries or schema changed | Query plans reviewed, indexes cover new queries, no N+1, expand/contract migration | `devflow:harden` (none) |
 | 20 | Security review | 2 | always | No new vulnerabilities; authorisation on every route; dependency, secret and licence scans clean | `devflow:harden` (`security-review`) |
@@ -43,4 +43,4 @@ Assign the highest tier that any part of the change triggers. When unsure betwee
 | 25 | Preview and smoke | 2 | deployable app | Preview deploy smoke-tested before promotion | `devflow:ship` |
 | 26 | Follow-through | 2 | always | CI green, review comments answered, postmortem if anything escaped | `devflow:ship` |
 
-Scripted steps are decided by exit code. Steps 10 and 22, and the judgement halves of 15, 17, 20 and 21, are decided by the independent verifier. Stress steps (15, 18) run against a local or preview environment only, never production.
+Scripted steps are decided by exit code. Steps 10 and 22, and the judgement halves of 15, 17, 20 and 21, are decided by the independent verifier. Step 15 runs in a browser and is safe against a local build or a preview. Step 18 load tests run against a local build only. Nothing here runs against production.

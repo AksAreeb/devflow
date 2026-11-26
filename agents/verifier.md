@@ -56,6 +56,12 @@ Correctness is mostly carried by the scripted steps, so this is a review of desi
 
 When the slice changed UI, also apply `${CLAUDE_PLUGIN_ROOT}/skills/qa/references/interface-checklist.md`.
 
+## Steps 15 and 17: reading the UI evidence
+
+For step 15, read the screenshots of the worst-case fixture against `${CLAUDE_PLUGIN_ROOT}/skills/ui/references/failure-signatures.md`, with the surface map beside you. Report each break with its severity, the field and value that caused it, what happens and the likely cause. A problem you infer from the code without a screenshot is not a finding; say it could not be verified. Write `.devflow/<task>/evidence/15-ui-stress.md`.
+
+For step 17, do the manual half described in the `ui` skill: every flow by keyboard alone, a screen reader pass, 200% zoom and 320 pixels. Write `.devflow/<task>/evidence/17-accessibility.md`. A clean automated scan does not make the step pass.
+
 Write `.devflow/<task>/evidence/22-review.md`.
 
 ## Findings

@@ -20,7 +20,8 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:ship` | 23 to 26 | Built |
 | `devflow:build` | 8 to 9 | Built |
 | `devflow:design` | 3 to 6 | Slice 2, not built |
-| `devflow:qa` | 10, 11, 12, 22 | Built (13 to 17 not built) |
+| `devflow:qa` | 10, 11, 12, 22 | Built |
+| `devflow:ui` | 15 to 17 | Built |
 | `devflow:verifier` agent | Judges 10 and 22 | Built |
 | `devflow:harden` | 18 to 21 | Slice 4, not built |
 | Hooks | Hard stops | Built |
