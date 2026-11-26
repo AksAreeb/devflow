@@ -28,8 +28,8 @@ Assign the highest tier that any part of the change triggers. When unsure betwee
 | 10 | Functional QA | 1 | always | Every acceptance criterion checked in the running app | `devflow:qa`, judged by `devflow:verifier` |
 | 11 | Regression | 1 | always | Tests, lint, types and build pass; changed lines covered; flaky tests quarantined and logged, never retried silently | `devflow:qa` |
 | 12 | Mutation testing | 2 | logic changed | Mutants in changed code are killed, survivors explained | `devflow:qa` |
-| 13 | Property and fuzz tests | 3 | parsers, validators, money maths | Properties stated and exercised | `devflow:qa` (none) |
-| 14 | Contract tests | 3 | change crosses a service boundary | Consumer and provider agree | `devflow:qa` (none) |
+| 13 | Property and fuzz tests | 3 | parsers, validators, money maths | Properties stated and exercised | `devflow:qa` |
+| 14 | Contract tests | 3 | change crosses a service boundary | Consumer and provider agree | `devflow:qa` |
 | 15 | UI stress | 2 | UI changed | Zero Blocking findings on the worst-case fixture; no sideways scroll at 320 pixels; one record from a double submit | `devflow:ui`, judged by `devflow:verifier` |
 | 16 | Visual regression | 2 | UI changed | Zero unapproved screenshot diffs | `devflow:ui` |
 | 17 | Accessibility | 2 | UI changed | WCAG 2.2 AA scan clean, and the manual keyboard and screen reader pass done | `devflow:ui`, judged by `devflow:verifier` |

@@ -66,6 +66,8 @@ This step is done by tools, not by rereading your own code. Run whichever of the
 | `unused` | No unused exports, files or dependencies |
 | `complexity` | No function over the repo's complexity limit |
 
+When the slice changes UI, the repo's linter should also enforce the interface rules a machine can decide. `references/interface-lint.md` lists them. If the repo's lint config is missing some, say so to the user and propose adding them as their own slice; do not widen this one.
+
 Fix what they report. For a complexity or length warning, either simplify the function or explain in a comment why it has to be that way; do not suppress the rule.
 
 Then clean up by hand what tools miss: debug output, commented-out code, TODOs with no owner, and docs that the change made wrong.

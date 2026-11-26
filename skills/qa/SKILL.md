@@ -1,9 +1,9 @@
 ---
 name: qa
-description: Verify a built slice with scripted checks and an independent verifier agent. Runs regression, changed-line coverage and mutation testing by exit code, then hands functional QA and code review to a verifier that has not seen how the code was built. Use after a slice is implemented, whenever the user says verify, QA, test it, review it or check the slice, or when the devflow pipeline reaches steps 10, 11, 12 and 22.
+description: Verify a built slice with scripted checks and an independent verifier agent. Runs regression, changed-line coverage and mutation testing by exit code, then hands functional QA and code review to a verifier that has not seen how the code was built. Use after a slice is implemented, whenever the user says verify, QA, test it, review it or check the slice, or when the devflow pipeline reaches steps 10 to 14 and 22.
 ---
 
-# Verify a slice (steps 10, 11, 12 and 22)
+# Verify a slice (steps 10 to 14 and 22)
 
 Verification is split by who can be trusted to decide. Scripts decide whether the code is correct, because an exit code cannot be talked round. A separate verifier agent judges what scripts cannot: whether the running app does what the spec says, and whether the design is sound. You, the session that built the code, decide nothing here. Your job is to run things and fix what they find.
 
@@ -41,6 +41,41 @@ Mutation testing makes small breaking changes to the code and checks that a test
 
 If the repo has no mutation tool configured, mark the step `not-run` with that reason. Do not substitute a guess about test quality.
 
+## Step 13: property and fuzz tests (tier 3, for certain kinds of code)
+
+An ordinary test checks the examples someone thought of. A property test states a rule that must hold for every input and lets the tool hunt for a counterexample. It applies when the slice touches one of these, and is `n/a` otherwise:
+
+| The code is | A property worth stating |
+|-------------|--------------------------|
+| A parser or serializer | Writing a value out and reading it back gives the same value |
+| Money or date arithmetic | Totals equal the sum of their parts; rounding never creates or loses a cent |
+| A state machine | No sequence of valid actions reaches an invalid state |
+| A handler that may be retried | Doing it twice has the same effect as doing it once |
+| An authorization rule | No input lets a user act on something they do not own |
+| Anything that takes outside input | It never throws on any input, only returns an error |
+
+The property should already be stated in words in the spec. If it is not, add it there first.
+
+```
+devflow run 13 --check property
+```
+
+Run at least 100 generated cases per property. When the tool finds a failing input, it shrinks it to the smallest one: commit that as an ordinary regression test and keep the seed in the log. A property whose assertion repeats the code under test proves nothing, so state the rule independently. Do not write filler properties to tick the step.
+
+## Step 14: contract tests (tier 3, when the slice crosses a boundary)
+
+A boundary is anywhere this code exchanges data with something deployed separately: another service, a third-party API, a webhook, a queue.
+
+- **Parse at the boundary.** Every response from outside goes through a runtime schema. A type assertion is a claim, not a check, and it fails silently when the other side changes.
+- **Diff the contract.** Compare the API description or schema against the last release, and treat a removed or renamed field, a changed type, or a newly required field as breaking unless a version bump was approved.
+- **Check third parties on a schedule, not in the gate.** Recorded fixtures drift from the real service. Re-check them against the provider's sandbox periodically, so an outage on their side does not block a release but a change in their responses is noticed.
+
+```
+devflow run 14 --check contract
+```
+
+A single app whose front end and back end are type-checked together has no boundary of this kind. Mark the step `n/a` with "covered by typecheck".
+
 ## Steps 10 and 22: the verifier (tier 2 and up)
 
 Hand these to the `devflow:verifier` agent as a fresh subagent, not a fork of this conversation. A fork inherits everything you have said and thought, and a reviewer that has seen the builder's reasoning tends to confirm it.
@@ -75,4 +110,4 @@ After five rounds on the same failure, stop and tell the user what is blocking y
 
 ## Done
 
-Run `devflow status`. Steps 10, 11, 12 and 22 should each show `passed`, `n/a` or `not run` with a reason. Anything `stale` means the code changed after it was checked, so run it again.
+Run `devflow status`. Steps 10 to 14 and 22 should each show `passed`, `n/a` or `not run` with a reason. Anything `stale` means the code changed after it was checked, so run it again.
