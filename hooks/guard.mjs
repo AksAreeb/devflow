@@ -165,6 +165,15 @@ function shellCommand(command, root) {
       decide('ask', `devflow: this records ${what} as approved. Approve only if you have read it and agree with it.`);
     }
   }
+  // Marking a step n/a or not run is fine while it is pending. Marking one that
+  // has failed waives a check that found something, and that is the person's call.
+  const marked = /run\.mjs["']?\s+mark\s+(\d+)\b/.exec(command)?.[1];
+  if (marked && activeTask(root)) {
+    const failed = ledgerStatus(root).text.split(/\r?\n/).find((line) => new RegExp(`^\\s*${marked}\\s+\\S+\\s+failed\\b`).test(line));
+    if (failed) {
+      decide('ask', `devflow: step ${marked} has failed, and this would waive it. Approve only if you have seen what it found and accept the risk.\n${failed.trim()}`);
+    }
+  }
   if (!PR_CREATE.test(command)) return;
   if (!activeTask(root)) decide('ask', 'devflow: opening a pull request needs the person\'s go-ahead.');
   const gate = ledgerStatus(root, '--gate');

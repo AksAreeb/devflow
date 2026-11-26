@@ -104,6 +104,44 @@ function report(title, findings, advice) {
   return 1;
 }
 
+// npm's own report runs to pages, and a reader who sees only the end of it can
+// miss a critical finding near the top. This prints a short summary, worst
+// first, that separates what ships to users from what only runs in development.
+function npmAudit() {
+  const load = (fixture, flags) => {
+    const raw = process.env[fixture]
+      ? fs.readFileSync(process.env[fixture], 'utf8')
+      : spawnSync(`npm audit --json ${flags}`, { shell: true, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).stdout;
+    try { return Object.values(JSON.parse(raw).vulnerabilities ?? {}); } catch { return null; }
+  };
+  const all = load('DEVFLOW_AUDIT_ALL', '');
+  const production = load('DEVFLOW_AUDIT_PRODUCTION', '--omit=dev');
+  if (!all || !production) {
+    console.log('Dependencies (npm): the audit returned no result. Check the network, then run it again. Do not treat this as a pass.');
+    return 1;
+  }
+  const rank = { critical: 0, high: 1, moderate: 2, low: 3 };
+  const serious = (list) => list.filter((v) => rank[v.severity] <= 1).sort((a, b) => rank[a.severity] - rank[b.severity]);
+  const tally = (list) => ['critical', 'high', 'moderate', 'low'].map((s) => [list.filter((v) => v.severity === s).length, s])
+    .filter(([n]) => n).map(([n, s]) => `${n} ${s}`).join(', ') || 'none';
+  const fix = (v) => (v.fixAvailable === true ? 'fix: npm audit fix' : v.fixAvailable ? 'fix needs a breaking upgrade' : 'no fix published yet');
+  const shipped = new Set(production.map((v) => v.name));
+  const blocking = serious(config.audit === 'all' ? all : production);
+  const devOnly = serious(all).filter((v) => !blocking.includes(v) && !shipped.has(v.name));
+
+  console.log(`Dependencies (npm), whole tree, whether or not this change touched it:`);
+  console.log(`  production: ${tally(production)}`);
+  console.log(`  development only: ${tally(all.filter((v) => !shipped.has(v.name)))}`);
+  for (const v of blocking) console.log(`  BLOCKING  ${v.severity.padEnd(8)} ${v.name}  (${fix(v)})`);
+  for (const v of devOnly) console.log(`  not blocking, development only  ${v.severity.padEnd(8)} ${v.name}  (${fix(v)})`);
+  if (blocking.length) {
+    console.log('A high or critical finding in a production dependency is a real exposure for users, whoever introduced it. Fix it in its own change. Report the worst severity exactly as listed here, and do not offer to waive it.');
+    return 1;
+  }
+  if (devOnly.length) console.log('Nothing blocking. Tell the person about the development-only findings and suggest fixing them in a separate change.');
+  return 0;
+}
+
 const SECRETS = [
   ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/],
   ['GitHub token', /\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,})\b/],
@@ -135,8 +173,8 @@ const checks = {
   },
 
   deps() {
+    if (fs.existsSync('package-lock.json')) return npmAudit();
     const audits = [
-      ['package-lock.json', 'npm audit --audit-level=high'],
       ['pnpm-lock.yaml', 'pnpm audit --audit-level high'],
       ['requirements.txt', 'pip-audit -r requirements.txt'],
       ['poetry.lock', 'pip-audit'],
@@ -309,7 +347,18 @@ const checks = {
       if (vague && !/\d/.test(r.text)) findings.push(`${r.id}: "${vague[0]}" cannot be checked. Give a number or a concrete condition.`);
       if (!r.example) findings.push(`${r.id}: no "Example:" line under it`);
     }
-    return report('Spec', findings, 'Fix each line, then run this check again before asking for approval.');
+    return report('Spec', findings, [
+      'Fix each line, then run this check again before asking for approval. The expected shape is:',
+      '  ## Problem',
+      '  ## Requirements',
+      '  - R1: When <trigger>, the system shall <response>.',
+      '    - Example: Given <state>, when <action>, then <what can be observed>.',
+      '  ## Non-goals',
+      '  ## Unchanged behaviour',
+      '  ## Provisional tier',
+      'A tier 1 change can use the short form instead: a line "Form: short", then "Change:", "Unchanged:" and "Check:" lines.',
+      'The spec skill (devflow:spec) has the full template.',
+    ].join('\n'));
   },
 
   // Step 7. Sizes and traceability are checked before any code exists, because

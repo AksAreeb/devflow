@@ -41,6 +41,8 @@ If `.devflow/current` already points at this task, resume from `status` instead 
 
 ## Running order
 
+Each stage has its own skill, named in brackets below. Load that skill with the Skill tool before you start the stage, even for a small change. This file gives the order and the rules; the stage skills hold the templates, commands and pass bars, and working without them means guessing at formats the checks will reject.
+
 1. **Spec** (`devflow:spec`). Ends with a provisional tier. Stop for the user's approval.
 2. **Plan** (`devflow:plan`), tier 2 and up. Confirms the tier and slices the work. Stop for approval.
 3. **Build** one slice at a time (`devflow:build`). Tests are written first and shown failing.
