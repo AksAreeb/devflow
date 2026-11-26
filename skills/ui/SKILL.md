@@ -45,6 +45,12 @@ devflow run 15 --check ui-stress
 
 It captures each screen at 320, 375, 768 and 1280 pixels, at 200% zoom, in light and dark, and fails on horizontal overflow or console errors. Add a slow-network run and the double-submit and offline cases for any form.
 
+Three rules for any capture, learned from a trial where a capture passed and proved nothing:
+
+- **It must be able to fail on the code before the change.** Write the values it expects by hand. A capture that works out its expected values with the same formula as the code agrees with the code whatever the code does. If the real data cannot reach the case the change is about, such as a tenth item in a list of eight, the capture needs a fixture that does, and without one it is only a record that the old cases still look the same. Say which of the two it is in the evidence.
+- **A page-level overflow check does not see fixed panels.** An open menu or a dialog that locks scrolling can cut text off at the edge while the page reports no sideways scroll. Measure the panel's own content, or capture it and have the verifier read the screenshot.
+- **Stop what you start.** A script that starts a server waits for it to stop and confirms the port is free before it exits.
+
 ### 4. Have the verifier read the screenshots
 
 Send the `devflow:verifier` agent step 15 with the screenshots, the surface map and `references/failure-signatures.md`. It reports each break with its severity, the field and value that caused it, what happens, and the likely cause. It records the verdict.
