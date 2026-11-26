@@ -119,6 +119,7 @@ const commands = {
   init([task, ...rest]) {
     const tier = Number(option(rest, '--tier'));
     if (!/^[a-z0-9][a-z0-9-]*$/.test(task ?? '')) die('task name must be lowercase letters, digits and hyphens');
+    if (task === 'current') die('"current" is the name of the file that points at the active task. Choose another task name.');
     if (![1, 2, 3].includes(tier)) die('--tier must be 1, 2 or 3');
     const dir = path.join(base, task);
     if (fs.existsSync(path.join(dir, 'ledger.json'))) die(`ledger for "${task}" already exists. Use: status`);

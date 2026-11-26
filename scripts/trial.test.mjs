@@ -103,7 +103,10 @@ test('starting a task on a branch that is behind the remote base warns about it'
   git('commit', '-q', '-m', 'the base moved on');
   git('update-ref', 'refs/remotes/origin/dev', 'HEAD');
   git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/dev');
-  assert.doesNotMatch(node('run.mjs', ['init', 'current', '--tier', '1']).out, /Warning/);
+  const upToDate = node('run.mjs', ['init', 'up-to-date', '--tier', '1']);
+  assert.equal(upToDate.code, 0, upToDate.out);
+  assert.doesNotMatch(upToDate.out, /Warning/);
+  assert.equal(node('run.mjs', ['init', 'current', '--tier', '1']).code, 2, 'a task cannot take the name of the pointer file');
   git('checkout', '-q', 'stale');
   const started = node('run.mjs', ['init', 'behind', '--tier', '1']);
   assert.equal(started.code, 0);
