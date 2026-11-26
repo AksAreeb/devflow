@@ -7,6 +7,7 @@
 //   deps       known vulnerabilities, using the package manager's own audit
 //   newdeps    new direct dependencies nobody has approved, and lockfile drift
 //   integrity  weakened tests and new lint or type suppressions
+//   rules      the repo's written rules agree with the policy in devflow.config.json
 //   entrypoints  every changed entry point states its auth and ownership checks
 //   spec       the active task's spec.md is in a checkable form
 //   plan       the active task's plan.md has sized, traceable slices
@@ -189,6 +190,65 @@ const checks = {
       else if (SUPPRESSION.test(text)) findings.push(`${file}:${line}  new suppression: ${text.trim()}`);
     }
     return report('Test integrity', findings, 'Each of these weakens a check. Undo it, or if the spec truly requires it, mark the step not-run with the reason so the person sees it before a pull request.');
+  },
+
+  // Repo rules. A rule written in several files drifts, so the policy block in
+  // devflow.config.json is the one statement of it, and the files people and
+  // agents read are checked against that.
+  rules() {
+    const policy = config.policy;
+    if (!policy) {
+      console.log('Repo rules: no "policy" block in devflow.config.json, so there is nothing to check against.');
+      return 1;
+    }
+    const exists = (file) => fs.existsSync(path.join(root, file));
+    const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+    const integration = policy.integrationBranch ?? 'main';
+    const release = policy.releaseBranch ?? integration;
+    const agentFile = policy.agentFile ?? 'AGENTS.md';
+    const otherFile = agentFile === 'AGENTS.md' ? 'CLAUDE.md' : 'AGENTS.md';
+    const findings = [];
+
+    for (const file of [agentFile, 'CONTRIBUTING.md', '.github/pull_request_template.md', ...(policy.docs ?? [])]) {
+      if (!exists(file)) findings.push(`${file}: missing`);
+    }
+    if (exists(agentFile) && exists(otherFile) && !read(otherFile).includes(agentFile)) {
+      findings.push(`${otherFile}: does not point to ${agentFile}, so the two can drift apart. Make it a short pointer.`);
+    }
+    const budget = policy.instructionBudget ?? 80;
+    const lines = [agentFile, otherFile].filter(exists).reduce((total, file) => total + read(file).trimEnd().split('\n').length, 0);
+    if (lines > budget) findings.push(`agent instructions total ${lines} lines; the budget is ${budget}. Move reference material into docs and link to it.`);
+
+    const remoteDefault = tryGit('symbolic-ref', '--short', 'refs/remotes/origin/HEAD')?.trim().replace(/^origin\//, '');
+    if (remoteDefault && remoteDefault !== integration) findings.push(`the remote's default branch is ${remoteDefault}, but the policy integrates on ${integration}`);
+    if (release !== integration && policy.enforcement !== 'hooks-only' && !exists('.github/workflows/branch-policy.yml')) {
+      findings.push('.github/workflows/branch-policy.yml: missing, so nothing on the server checks where a pull request is aimed');
+    }
+
+    // Statements that disagree with the policy. Lines that are clearly about an
+    // exception (never, only, hotfix, release) are left alone.
+    const b = release.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const claims = release === integration ? [] : [
+      [new RegExp(`branch(es|ing)?\\s+(off|from)\\s+\`?(origin/)?${b}\\b`, 'i'), `says to branch from ${release}; the policy branches from ${integration}`],
+      [new RegExp(`(PRs?|pull requests?)\\s+(target|go to|into|against)\\s+\`?${b}\\b`, 'i'), `says pull requests target ${release}; the policy targets ${integration}`],
+      [/trunk-based/i, `describes trunk-based development; the policy integrates on ${integration} and releases from ${release}`],
+      ...(policy.mergeIntoRelease === 'merge' ? [[new RegExp(`squash[- ]merg\\w*\\s+(in)?to\\s+\`?${b}\\b`, 'i'), `says to squash into ${release}; the policy uses a merge commit`]] : []),
+    ];
+    const isPath = (ref) => !/[*<>{}$|@:]/.test(ref) && (/\/.*\.\w{1,5}$/.test(ref) || /^[A-Z_]+\.md$/.test(ref));
+
+    for (const file of [agentFile, otherFile, 'CONTRIBUTING.md', '.github/pull_request_template.md', 'README.md'].filter(exists)) {
+      read(file).split('\n').forEach((line, i) => {
+        for (const match of line.matchAll(/`([^`\s]+)`|\]\(([^)\s#]+)/g)) {
+          const ref = match[1] ?? match[2];
+          if (!isPath(ref)) continue;
+          const found = [path.resolve(root, ref), path.resolve(root, path.dirname(file), ref)].some((candidate) => fs.existsSync(candidate));
+          if (!found) findings.push(`${file}:${i + 1}  points to ${ref}, which does not exist`);
+        }
+        if (/\b(never|not|don't|except|only|hotfix|release|promot)/i.test(line)) return;
+        for (const [pattern, problem] of claims) if (pattern.test(line)) findings.push(`${file}:${i + 1}  ${problem}`);
+      });
+    }
+    return report('Repo rules', findings, 'The policy block in devflow.config.json is the source of truth. Fix the file, or change the policy if the file is right.');
   },
 
   // Step 20. Missing authorization at the real entry point is the most common

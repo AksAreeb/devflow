@@ -90,8 +90,47 @@ These need no setup and compare the working tree against the base branch:
 The scripts need Node 20 or later and have no dependencies. Run the tests with:
 
 ```
-node --test scripts/run.test.mjs scripts/scan.test.mjs hooks/guard.test.mjs
+node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs
 ```
+
+## Repo rules
+
+A repo can state its branch policy once, in a `policy` block in `devflow.config.json`:
+
+```json
+{
+  "policy": {
+    "integrationBranch": "dev",
+    "releaseBranch": "main",
+    "hotfixPrefix": "hotfix/",
+    "branchPrefixes": ["feat/", "fix/", "docs/", "chore/"],
+    "commits": "conventional",
+    "mergeIntoRelease": "merge",
+    "agentFile": "AGENTS.md",
+    "instructionBudget": 80,
+    "docs": ["docs/README.md"]
+  }
+}
+```
+
+The hooks then enforce it for any agent working in the repo:
+
+| Rule | Behaviour |
+|------|-----------|
+| A new branch | Refused if its name lacks an allowed prefix, or if it starts from the release branch and is not a hotfix |
+| A pull request | Refused unless it targets the integration branch. Only the integration branch and hotfixes may target the release branch |
+| A push straight to the integration or release branch | Refused |
+| A commit subject | Refused if the policy names Conventional Commits and the subject does not follow them |
+
+And the written rules can be checked against the policy, in CI or by hand:
+
+```
+node scripts/scan.mjs rules
+```
+
+It reports files the policy expects that are missing, references in the rule files to paths that do not exist, statements that contradict the policy (for example a README that says to branch from the release branch), a second agent instruction file that does not point to the first, agent instructions over the line budget, and a remote default branch that differs from the policy.
+
+Limits: a commit message passed in a file or a heredoc is not checked, and the contradiction check matches common phrasings only.
 
 ## Hard stops
 

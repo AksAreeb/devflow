@@ -102,10 +102,56 @@ const handlers = {
   },
 };
 
+// The repo's branch policy, from the "policy" block in devflow.config.json.
+// These apply whether or not a task is active, since they are rules of the
+// repo and not of one piece of work.
+function branchPolicy(command, root) {
+  const configFile = root && path.join(root, 'devflow.config.json');
+  const policy = configFile && fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile, 'utf8')).policy : null;
+  if (!policy) return;
+  const integration = policy.integrationBranch ?? 'main';
+  const release = policy.releaseBranch ?? integration;
+  const hotfix = policy.hotfixPrefix ?? 'hotfix/';
+  const current = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+  const strip = (ref) => (ref ?? '').replace(/^origin\//, '');
+
+  const created = /\bgit\s+(?:switch\s+(?:-c|--create)|checkout\s+-b)\s+["']?([\w./-]+)["']?(?:\s+["']?([\w./-]+))?/.exec(command);
+  if (created) {
+    const [, name, start] = created;
+    const from = strip(start) || current;
+    const prefixes = [...(policy.branchPrefixes ?? []), hotfix];
+    if (policy.branchPrefixes && !prefixes.some((prefix) => name.startsWith(prefix))) {
+      decide('deny', `devflow: branch names in this repo start with one of: ${prefixes.join(', ')}. Rename "${name}".`);
+    }
+    if (release !== integration && from === release && !name.startsWith(hotfix)) {
+      decide('deny', `devflow: work branches from ${integration}, not ${release}. Use: git switch -c ${name} origin/${integration}`);
+    }
+  }
+
+  const base = /\bgh\s+pr\s+create\b[^|;&\n]*?(?:--base|-B)[=\s]+["']?([\w./-]+)/.exec(command)?.[1];
+  if (base && base !== integration && !(base === release && (current === integration || current.startsWith(hotfix)))) {
+    decide('deny', `devflow: pull requests in this repo target ${integration}. Only ${integration} and ${hotfix}* branches go to ${release}. Use: --base ${integration}`);
+  }
+
+  const pushed = new RegExp(`\\bgit\\s+push\\b[^|;&\\n]*(?:\\s|:|:refs/heads/)(${[release, integration].join('|')})(?=\\s|$)`).exec(command);
+  if (pushed) {
+    decide('deny', `devflow: ${pushed[1]} is a protected branch here. Push your work branch and open a pull request into ${integration}.`);
+  }
+
+  const message = /\bgit\s+commit\b[^|;&\n]*?\s-m\s+(["'])([\s\S]+?)\1/.exec(command)?.[2];
+  if (message && policy.commits === 'conventional') {
+    const subject = message.split('\n')[0];
+    if (!/^(feat|fix|docs|chore|refactor|perf|test|build|ci|style|revert)(\([\w./-]+\))?!?: \S/.test(subject)) {
+      decide('deny', `devflow: this repo uses Conventional Commits. Start the subject with a type, for example "fix: ${subject.slice(0, 40)}".`);
+    }
+  }
+}
+
 function shellCommand(command, root) {
   if (MERGE.some((pattern) => pattern.test(command))) {
     decide('deny', 'devflow: merging belongs to the person, not the agent. Do not merge locally or on GitHub. Report that the branch is ready and stop.');
   }
+  branchPolicy(command, root);
   // Approving the spec or the plan is the person's call, so recording either as
   // passed puts the question in front of them.
   const approval = /run\.mjs["']?\s+record\s+(1|7)\s+passed\b/.exec(command);
