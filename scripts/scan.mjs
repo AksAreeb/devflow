@@ -60,7 +60,7 @@ function changes() {
     const content = fs.readFileSync(untracked, 'utf8');
     if (content.includes('\0')) continue;
     status.set(untracked, 'A');
-    content.split('\n').forEach((text, i) => added.push({ file: untracked, line: i + 1, text }));
+    content.split(/\r?\n/).forEach((text, i) => added.push({ file: untracked, line: i + 1, text }));
   }
   return { base, added, removed, status };
 }
@@ -78,13 +78,15 @@ function taskFile(name) {
     console.error(`devflow scan: ${path.relative(root, file)} does not exist yet`);
     process.exit(1);
   }
-  return { text: fs.readFileSync(file, 'utf8'), dir };
+  // A file saved on Windows ends its lines with \r\n, and a stray \r stops the
+  // patterns below from matching a single line.
+  return { text: fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'), dir };
 }
 
 // Requirements are list items of the form "- R1: text", each with an indented "Example:" line.
 function parseRequirements(text) {
   const requirements = [];
-  for (const line of text.split('\n')) {
+  for (const line of text.split(/\r?\n/)) {
     const requirement = /^\s*[-*]\s*\*{0,2}(R\d+)\*{0,2}[:.]\s*(.+)$/.exec(line);
     if (requirement) requirements.push({ id: requirement[1], text: requirement[2].trim(), example: false });
     else if (/^\s+[-*]\s*\*{0,2}Example\*{0,2}:/i.test(line) && requirements.length) requirements[requirements.length - 1].example = true;
@@ -240,7 +242,7 @@ const checks = {
       return 1;
     }
     const exists = (file) => fs.existsSync(path.join(root, file));
-    const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+    const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
     const integration = policy.integrationBranch ?? 'main';
     const release = policy.releaseBranch ?? integration;
     const agentFile = policy.agentFile ?? 'AGENTS.md';

@@ -94,6 +94,19 @@ test('a failed spec check shows the shape it expects', () => {
   assert.match(result.out, /Form: short/);
 });
 
+test('a spec saved with Windows line endings is read the same as any other', () => {
+  const { write, node } = repo();
+  const crlf = (text) => text.replace(/\n/g, '\r\n');
+  write('.devflow/current', 't\n');
+  const spec = '# Spec\n\n## Problem\nItem ten shows as 010.\n\n## Requirements\n- R1: When the list renders item ten, the system shall show 10.\n  - Example: Given 12 items, when the list renders, then the tenth shows 10.\n\n## Non-goals\n- None.\n\n## Unchanged behaviour\n- Items 1 to 9.\n\n## Provisional tier\nTier 2, because it changes shared components.\n';
+  write('.devflow/t/spec.md', spec);
+  const unix = node('scan.mjs', ['spec']);
+  assert.equal(unix.code, 0, unix.out);
+  write('.devflow/t/spec.md', crlf(spec));
+  const windows = node('scan.mjs', ['spec']);
+  assert.equal(windows.code, 0, windows.out);
+});
+
 test('starting a task on a branch that is behind the remote base warns about it', () => {
   const { dir, write, node } = repo();
   const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...identity }, stdio: 'ignore' });
