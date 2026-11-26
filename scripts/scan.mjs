@@ -234,15 +234,28 @@ const checks = {
       [/trunk-based/i, `describes trunk-based development; the policy integrates on ${integration} and releases from ${release}`],
       ...(policy.mergeIntoRelease === 'merge' ? [[new RegExp(`squash[- ]merg\\w*\\s+(in)?to\\s+\`?${b}\\b`, 'i'), `says to squash into ${release}; the policy uses a merge commit`]] : []),
     ];
-    const isPath = (ref) => !/[*<>{}$|@:]/.test(ref) && (/\/.*\.\w{1,5}$/.test(ref) || /^[A-Z_]+\.md$/.test(ref));
+    // A template name such as docs/adr/NNNN-title.md is a pattern, not a pointer.
+    const isPath = (ref) => !/[*<>{}$|@:]/.test(ref) && !/N{3,}|X{3,}|Y{4}/.test(ref)
+      && (/\/.*\.\w{1,5}$/.test(ref) || /^[A-Z_]+\.md$/.test(ref));
+    // Guides often name a file by the end of its path ("eval/run.ts" for
+    // apps/server/eval/run.ts), and point at files each person creates for
+    // themselves, such as .env. Neither is a broken pointer. Being gitignored is
+    // not enough on its own to excuse a missing file: a whole docs folder can be
+    // ignored and still be expected to exist.
+    const tracked = (tryGit('ls-files') ?? '').split('\n');
+    const resolves = (file, ref) => {
+      const short = ref.replace(/^\.\//, '');
+      return [path.resolve(root, ref), path.resolve(root, path.dirname(file), ref)].some((candidate) => fs.existsSync(candidate))
+        || tracked.some((entry) => entry.endsWith(`/${short}`))
+        || /^\.env(\.|$)|\.local\./.test(path.basename(short));
+    };
 
     for (const file of [agentFile, otherFile, 'CONTRIBUTING.md', '.github/pull_request_template.md', 'README.md'].filter(exists)) {
       read(file).split('\n').forEach((line, i) => {
         for (const match of line.matchAll(/`([^`\s]+)`|\]\(([^)\s#]+)/g)) {
           const ref = match[1] ?? match[2];
           if (!isPath(ref)) continue;
-          const found = [path.resolve(root, ref), path.resolve(root, path.dirname(file), ref)].some((candidate) => fs.existsSync(candidate));
-          if (!found) findings.push(`${file}:${i + 1}  points to ${ref}, which does not exist`);
+          if (!resolves(file, ref)) findings.push(`${file}:${i + 1}  points to ${ref}, which does not exist`);
         }
         if (/\b(never|not|don't|except|only|hotfix|release|promot)/i.test(line)) return;
         for (const [pattern, problem] of claims) if (pattern.test(line)) findings.push(`${file}:${i + 1}  ${problem}`);

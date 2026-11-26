@@ -68,6 +68,26 @@ test('missing files, broken pointers and an unlinked second agent file are repor
   assert.doesNotMatch(result.out, /npm/, 'a command is not a path');
 });
 
+test('partial paths, template names and personal files are not broken pointers', () => {
+  const result = repo({
+    ...sound,
+    '.gitignore': '.env\n/docs/ignored/\n',
+    'apps/server/eval/run.ts': 'export {};\n',
+    'AGENTS.md': [
+      '# Agent guide', '',
+      'Run `eval/run.ts` for evals.',
+      'Name a decision record `docs/adr/NNNN-title.md`.',
+      'Copy the example to `apps/server/.env` and adjust `.claude/settings.local.json`.',
+      'The runbook is `docs/ignored/runbook.md`.',
+      'See `docs/gone/away.md`.', '',
+    ].join('\n'),
+  });
+  assert.equal(result.code, 1);
+  assert.match(result.out, /Repo rules: 2 finding/);
+  assert.match(result.out, /AGENTS\.md:6 {2}points to docs\/ignored\/runbook\.md/, 'being gitignored does not excuse a missing doc');
+  assert.match(result.out, /AGENTS\.md:7 {2}points to docs\/gone\/away\.md/);
+});
+
 test('statements that contradict the policy are reported, exceptions are not', () => {
   const result = repo({
     ...sound,
