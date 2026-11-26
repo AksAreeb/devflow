@@ -9,6 +9,9 @@
 //       add --expect-fail before the -- when the command is meant to fail
 //   record <step> <passed|failed> --artefact <path>   verdict for a judged step
 //   mark <step> <n/a|not-run> --reason <text>         step that will not run
+//   lesson <step> --text <what to do differently>     what a failed step taught, kept for later tasks
+//   lesson <step> --none --reason <text>              the failure has nothing to teach
+//   lessons [--step <n>]                    show the lessons recorded in this repo
 //   status [--gate] [--through <step>]      show the ledger; --gate exits 1 if any step up to
 //                                           Ship (24, or the step given) is not settled
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -68,6 +71,20 @@ function loadLedger() {
 
 function save(file, ledger) {
   fs.writeFileSync(file, JSON.stringify(ledger, null, 2) + '\n');
+}
+
+// Lessons outlive the task that produced them: one file for the repo, read back
+// when the next task starts and whenever the same step fails again.
+const lessonsFile = path.join(base, 'lessons.json');
+
+function loadLessons() {
+  return fs.existsSync(lessonsFile) ? JSON.parse(fs.readFileSync(lessonsFile, 'utf8')) : [];
+}
+
+function printLessons(lessons, heading) {
+  if (!lessons.length) return;
+  console.log(`\n${heading}`);
+  for (const l of lessons) console.log(`  step ${l.step}: ${l.text}  (from "${l.task}")`);
 }
 
 function entryFor(ledger, stepArg) {
@@ -147,6 +164,8 @@ const commands = {
     } catch {
       // No remote default branch is known, so there is nothing to compare with.
     }
+    const relevant = loadLessons().filter((l) => entries.some((e) => e.step === l.step));
+    printLessons(relevant.slice(-10), 'Lessons from earlier tasks in this repo. Apply them before repeating the mistake:');
   },
 
   run([stepArg, ...rest]) {
@@ -178,10 +197,15 @@ const commands = {
     const expectFail = rest.slice(0, split === -1 ? undefined : split).includes('--expect-fail');
     entry.runs.push({ label, command, exitCode, expectFail, tree, log, at: new Date().toISOString() });
     entry.mark = null;
-    save(file, ledger);
     const asExpected = (exitCode !== 0) === expectFail;
+    if (!asExpected) entry.failures = (entry.failures ?? 0) + 1;
+    save(file, ledger);
     console.log(output.split(/\r?\n/).slice(-40).join('\n'));
     console.log(`devflow: step ${entry.step} "${label}" exited ${exitCode}${expectFail ? (asExpected ? ', failing as expected' : ', but it was expected to fail') : ''}. Log: .devflow/${ledger.task}/${log}`);
+    if (!asExpected) {
+      const earlier = loadLessons().filter((l) => l.step === entry.step);
+      printLessons(earlier.slice(-5), `This step has failed in this repo before. Lessons recorded for step ${entry.step}:`);
+    }
     process.exit(asExpected ? 0 : 1);
   },
 
@@ -193,6 +217,7 @@ const commands = {
     const artefact = option(rest, '--artefact');
     if (!artefact || !fs.existsSync(path.resolve(root, artefact))) die('--artefact must point at an existing evidence file');
     entry.verdict = verdict;
+    if (verdict === 'failed') entry.failures = (entry.failures ?? 0) + 1;
     entry.verdictTree = treeHash();
     entry.artefacts = [artefact];
     entry.mark = null;
@@ -212,6 +237,35 @@ const commands = {
     console.log(`Step ${entry.step} marked ${entry.mark}.`);
   },
 
+  lesson([stepArg, ...rest]) {
+    const { file, ledger } = loadLedger();
+    const entry = entryFor(ledger, stepArg);
+    if (rest.includes('--none')) {
+      const reason = option(rest, '--reason');
+      if (!reason) die('--reason is required: say why this failure has nothing to teach');
+      entry.lesson = `none: ${reason}`;
+      save(file, ledger);
+      return console.log(`Step ${entry.step}: no lesson, ${reason}`);
+    }
+    const text = (option(rest, '--text') ?? '').trim();
+    if (text.length < 20) die('use: lesson <step> --text "<what to do differently next time, as a full sentence>"');
+    const lessons = loadLessons();
+    if (!lessons.some((l) => l.step === entry.step && l.text === text)) {
+      lessons.push({ step: entry.step, text, task: ledger.task, at: new Date().toISOString() });
+      save(lessonsFile, lessons);
+    }
+    entry.lesson = text;
+    save(file, ledger);
+    console.log(`Lesson recorded for step ${entry.step}. It will be shown when the next task starts.`);
+  },
+
+  lessons(args) {
+    const step = option(args, '--step');
+    const lessons = loadLessons().filter((l) => !step || l.step === Number(step));
+    if (!lessons.length) return console.log('No lessons recorded.');
+    printLessons(lessons, `Lessons recorded in this repo${step ? ` for step ${step}` : ''}:`);
+  },
+
   status(args) {
     const { ledger } = loadLedger();
     const tree = treeHash();
@@ -228,8 +282,15 @@ const commands = {
     const blocking = rows.filter((r) => r.step <= through && ['pending', 'failed', 'stale'].includes(r.state));
     const skipped = rows.filter((r) => r.state === 'not run');
     if (skipped.length) console.log(`\nNot run, to be stated in the ship report: ${skipped.map((r) => r.step).join(', ')}`);
-    if (!blocking.length) return console.log('\nGate: clean.');
+    // A step that failed along the way owes one line on what to do differently,
+    // or a statement that there is nothing to learn. Otherwise the same failure
+    // costs the same time in the next task.
+    const unlearned = rows.filter((r) => r.step <= through && r.failures > 0 && !r.lesson);
+    if (!blocking.length && !unlearned.length) return console.log('\nGate: clean.');
     console.error('\nGate: blocked. Next steps:');
+    for (const r of unlearned) {
+      console.error(`  step ${r.step} ${r.name} failed ${r.failures} time(s) during this task: record what to do differently with "lesson ${r.step} --text ...", or "lesson ${r.step} --none --reason ..." if it was a slip with nothing to teach`);
+    }
     for (const r of blocking) {
       const fix = { pending: 'run or record it, or mark it with a reason', failed: 'fix the failure and run it again', stale: 'the code changed since it ran, so run it again' }[r.state];
       console.error(`  step ${r.step} ${r.name} is ${r.state}: ${fix}`);

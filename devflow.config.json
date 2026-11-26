@@ -1,6 +1,6 @@
 {
   "checks": {
-    "test": "node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs scripts/policy.test.mjs scripts/trial.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs",
+    "test": "node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs scripts/policy.test.mjs scripts/trial.test.mjs scripts/lessons.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs",
     "lint": null,
     "typecheck": null,
     "build": null

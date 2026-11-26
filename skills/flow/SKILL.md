@@ -31,6 +31,8 @@ The ledger is kept by the plugin's capture script, `scripts/run.mjs`, so that it
 | `run <step> --label <name> -- <command>` | Run and record any other command for a step. |
 | `record <step> <passed\|failed> --artefact <path>` | Give the verdict for a step that needs judgement, pointing at the evidence file. |
 | `mark <step> <n/a\|not-run> --reason "<why>"` | Say a step does not apply, or could not run. |
+| `lesson <step> --text "<what to do differently>"` | Record what a failed step taught, so later tasks in this repo start with it. |
+| `lessons` | Show the lessons recorded in this repo. Add `--step <n>` for one step. |
 | `status` | Show where every step stands. Add `--gate` to check whether the slice is ready to ship. |
 
 Steps 11 and 20 run on every tier and each owes several checks: step 11 needs `test`, `lint`, `typecheck`, `build` and `integrity`, and step 20 needs `secrets`, `deps` and `newdeps`. A repo that has no linter or build declares that with `null` in its config. A new dependency passes only once the user has approved it by name in `approvedDependencies`.
@@ -38,6 +40,18 @@ Steps 11 and 20 run on every tier and each owes several checks: step 11 needs `t
 A step's state is worked out from exit codes, not typed in. A captured run only counts for the exact code it ran against: edit any file afterwards and the step shows as `stale` until it is run again. That is deliberate, since a test run from before a change says nothing about the change.
 
 If `.devflow/current` already points at this task, resume from `status` instead of starting over.
+
+## Lessons
+
+The pipeline is meant to get better each time it is used. `init` prints the lessons earlier tasks left in this repo, and a step that fails prints the lessons recorded for that step. Read them and act on them: they are mistakes already paid for once.
+
+Every step that fails during a task owes a lesson before the gate will pass, even after the step has been fixed. Once you know the cause, record it:
+
+```
+devflow lesson <step> --text "<what to do differently next time>"
+```
+
+Write the lesson as an instruction a stranger could follow at the start of a task, naming the cause and the action: "Run git fetch and branch from origin/dev, because the local dev branch is often behind" and not "be careful with branches". If the failure was a plain slip with nothing to carry forward, such as a typo in a command, say so with `devflow lesson <step> --none --reason "<why>"`. Do not use `--none` to avoid thinking about the cause. A lesson that keeps recurring belongs in the repo's agent guide or in a check, so tell the user when you see the same one twice.
 
 ## Running order
 

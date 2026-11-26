@@ -48,7 +48,7 @@ devflow record 24 passed --artefact .devflow/<task>/evidence/24-ship-report.md
 devflow status --gate
 ```
 
-The gate must be clean. If it lists a step, that step is pending, failed or stale: go back and settle it. Committing does not make evidence stale, but any edit after a check does.
+The gate must be clean. If it lists a step, that step is pending, failed or stale: go back and settle it. It also lists any step that failed along the way and has no lesson yet. Record one with `devflow lesson <step> --text "..."`, and list the lessons from this task in the report under Risks. Committing does not make evidence stale, but any edit after a check does.
 
 **4. Show the user the report and stop.** Approval of the work is not approval to open a pull request, so wait for an explicit go-ahead.
 

@@ -92,7 +92,7 @@ These need no setup and compare the working tree against the base branch:
 The scripts need Node 20 or later and have no dependencies. Run the tests with:
 
 ```
-node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs scripts/policy.test.mjs scripts/trial.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs
+node --test scripts/run.test.mjs scripts/scan.test.mjs scripts/rules.test.mjs scripts/policy.test.mjs scripts/trial.test.mjs scripts/lessons.test.mjs hooks/guard.test.mjs hooks/policy.test.mjs
 ```
 
 ## Repo rules
