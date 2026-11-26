@@ -120,3 +120,16 @@ test('marking a step needs a reason, and the gate is clean only when nothing is 
   assert.equal(gate.code, 0, gate.out);
   assert.match(gate.out, /Not run, to be stated in the ship report: 11/);
 });
+
+test('a verdict about the code goes stale when the code changes, a verdict about a document does not', () => {
+  const { dir, devflow } = repo();
+  devflow('init', 't', '--tier', '1');
+  fs.writeFileSync(path.join(dir, '.devflow', 't', 'note.md'), 'evidence');
+  devflow('record', '1', 'passed', '--artefact', '.devflow/t/note.md');
+  devflow('record', '10', 'passed', '--artefact', '.devflow/t/note.md');
+  assert.match(devflow('status').out, /10\s+functional-qa\s+passed/);
+  fs.writeFileSync(path.join(dir, 'app.txt'), 'changed after QA');
+  const status = devflow('status').out;
+  assert.match(status, /10\s+functional-qa\s+stale/);
+  assert.match(status, /1\s+spec\s+passed/);
+});

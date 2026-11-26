@@ -43,18 +43,18 @@ If `.devflow/current` already points at this task, resume from `status` instead 
 
 1. **Spec** (`devflow:spec`). Ends with a provisional tier. Stop for the user's approval.
 2. **Plan** (`devflow:plan`), tier 2 and up. Confirms the tier and slices the work. Stop for approval.
-3. **Build** one slice at a time. Write tests alongside the code, not after.
-4. **Verify, harden and review** the slice, following the verifier rule below.
+3. **Build** one slice at a time (`devflow:build`). Tests are written first and shown failing.
+4. **Verify** the slice (`devflow:qa`): scripted checks, then the independent verifier. Harden steps follow for tier 3.
 5. **Ship** the slice (`devflow:ship`). Stop before opening a PR.
 6. Repeat 3 to 5 for the next slice.
 
-Tier 1 changes skip Plan: confirm the spec in one line, build, verify, review, ship.
+Tier 1 changes skip Plan and the verifier: confirm the spec in one line, build, run the scripted checks, let the user check the result by hand, ship.
 
 ## Three rules that make the gates real
 
 **Evidence, or it did not happen.** A step passes only when the capture script recorded it: a command that exited zero, or a verdict tied to an evidence file such as a screenshot, a query plan or a number against a budget. Run checks through the script, not directly, or they leave no record. "Looks fine" is not evidence. This matters because a later reader, human or agent, cannot tell a check that passed from a check that was skipped unless the proof is attached.
 
-**The builder does not grade its own work.** Run steps 10 to 22 in a fresh subagent. Give it the spec, the diff and the applicable step list, and nothing about how you built it or what you think works. A verifier that has seen your reasoning tends to confirm it. When the verifier reports a failure, fix it in the main session, then send the fix back for a fresh check rather than marking it passed yourself.
+**The builder does not grade its own work.** Scripts decide correctness by exit code. What needs judgement (functional QA, code review, the manual halves of the UI and security steps) goes to the `devflow:verifier` agent, started fresh and never as a fork of this conversation. Tell it the task, the slice and the steps to judge, and nothing about how you built it or what you think works: a verifier that has seen your reasoning tends to confirm it. It records its own verdicts. When it reports a Blocking finding, fix it, re-run what went stale, and send the slice to a new verifier. A verdict about the code expires when the code changes, exactly as a test run does.
 
 **Never round up.** If a step could not run (no staging environment, skill not built yet, tool missing), mark it `not-run` with the reason and carry it into the ship report. A pipeline that quietly skips steps is worse than no pipeline, because the user believes they are covered.
 

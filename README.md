@@ -20,7 +20,8 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:ship` | 23 to 24 | Slice 1 |
 | `devflow:build` | 8 to 9 | Built |
 | `devflow:design` | 3 to 6 | Slice 2, not built |
-| `devflow:qa` | 10 to 17 | Slice 3, not built |
+| `devflow:qa` | 10, 11, 12, 22 | Built (13 to 17 not built) |
+| `devflow:verifier` agent | Judges 10 and 22 | Built |
 | `devflow:harden` | 18 to 21 | Slice 4, not built |
 | Hooks | Hard stops | Built |
 | Golden-task evals | Workflow evals | Not built |
@@ -32,6 +33,7 @@ Until a stage skill exists, the orchestrator falls back to the general skills na
 ```
 .claude-plugin/plugin.json   plugin manifest
 skills/<name>/SKILL.md       one folder per skill
+agents/verifier.md           the independent verifier agent
 hooks/hooks.json             hook registration
 hooks/guard.mjs              the hard stops: PR gate, no merges, protected files
 scripts/run.mjs              capture script: runs checks and writes the ledger

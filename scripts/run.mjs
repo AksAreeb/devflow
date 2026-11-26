@@ -101,7 +101,14 @@ function evaluate(entry, tree, config) {
     else if (entry.runs.some((r) => !r.expectFail && r.tree !== tree)) results.push('stale');
     else results.push('passed');
   }
-  if (entry.kind !== 'script') results.push(entry.verdict ?? 'pending');
+  if (entry.kind !== 'script') {
+    // A verdict about the code (QA, review) is only good for the code it looked
+    // at. A verdict about a document (spec, plan) does not expire when code changes.
+    const expires = STEPS.find((s) => s.n === entry.step).fresh;
+    if (!entry.verdict) results.push('pending');
+    else if (entry.verdict === 'passed' && expires && entry.verdictTree !== tree) results.push('stale');
+    else results.push(entry.verdict);
+  }
   return ['failed', 'pending', 'stale'].find((s) => results.includes(s)) ?? 'passed';
 }
 
@@ -171,6 +178,7 @@ const commands = {
     const artefact = option(rest, '--artefact');
     if (!artefact || !fs.existsSync(path.resolve(root, artefact))) die('--artefact must point at an existing evidence file');
     entry.verdict = verdict;
+    entry.verdictTree = treeHash();
     entry.artefacts = [artefact];
     entry.mark = null;
     save(file, ledger);
