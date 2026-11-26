@@ -135,6 +135,17 @@ const commands = {
       fs.appendFileSync(exclude, `${existing.endsWith('\n') || !existing ? '' : '\n'}.devflow/\n`);
     }
     console.log(`Ledger created for "${task}" at tier ${tier} with ${entries.length} steps.`);
+    // Work cut from an out-of-date copy of the base branch is checked against old
+    // code and old dependencies, and the results can be wrong in both directions.
+    try {
+      const upstream = git(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+      const behind = Number(git(['rev-list', '--count', `HEAD..${upstream}`]));
+      if (behind > 0) {
+        console.log(`Warning: this branch is ${behind} commit(s) behind ${upstream}. Run "git fetch", then start from or rebase onto ${upstream} before running any check. Otherwise the checks test old code.`);
+      }
+    } catch {
+      // No remote default branch is known, so there is nothing to compare with.
+    }
   },
 
   run([stepArg, ...rest]) {

@@ -94,6 +94,22 @@ test('a failed spec check shows the shape it expects', () => {
   assert.match(result.out, /Form: short/);
 });
 
+test('starting a task on a branch that is behind the remote base warns about it', () => {
+  const { dir, write, node } = repo();
+  const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...identity }, stdio: 'ignore' });
+  git('branch', 'stale');
+  write('newer.js', 'export const two = 2;\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'the base moved on');
+  git('update-ref', 'refs/remotes/origin/dev', 'HEAD');
+  git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/dev');
+  assert.doesNotMatch(node('run.mjs', ['init', 'current', '--tier', '1']).out, /Warning/);
+  git('checkout', '-q', 'stale');
+  const started = node('run.mjs', ['init', 'behind', '--tier', '1']);
+  assert.equal(started.code, 0);
+  assert.match(started.out, /Warning: this branch is 1 commit\(s\) behind origin\/dev/);
+});
+
 test('waiving a step that failed asks the person, marking a pending step does not', () => {
   const { node, hook } = repo();
   node('run.mjs', ['init', 't', '--tier', '1']);

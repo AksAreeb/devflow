@@ -75,6 +75,8 @@ Check: how to confirm it worked.
 
 ## 3. Start the ledger and check the spec
 
+First make sure the work starts from the current base. Run `git fetch`, then create the branch from the remote copy of the base branch, for example `git switch -c fix/thing origin/dev`. A local copy of that branch can be weeks old, and work cut from it is checked against old code and old dependencies. `init` warns when the branch is behind.
+
 ```
 devflow init <task-slug> --tier <n>
 devflow run 1 --builtin spec
