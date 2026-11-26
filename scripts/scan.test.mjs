@@ -179,3 +179,23 @@ test('entrypoints: every entry point needs an answer in every column', () => {
   assert.match(found.out, /deleteListing action: no answer for "Input validated by"/);
   assert.equal(task({ 'evidence/20-entry-points.md': table([]) }).scan('entrypoints').code, 1);
 });
+
+test('the base is the remote default branch, not an assumed main', () => {
+  const { dir, write, scan } = repo({ 'old.test.js': '// on main' + String.fromCharCode(10) });
+  const git = (...args) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...identity }, encoding: 'utf8' }).trim();
+  // main stays at the first commit. dev moves ahead with its own test file.
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  write('dev.test.js', '// added on dev' + String.fromCharCode(10));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'dev work');
+  git('update-ref', 'refs/remotes/origin/dev', 'HEAD');
+  git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/dev');
+  // The feature branch deletes the file that only dev has.
+  fs.rmSync(path.join(dir, 'dev.test.js'));
+  const found = scan('integrity');
+  assert.equal(found.code, 1);
+  assert.match(found.out, /dev\.test\.js: test file deleted/);
+  // Against main the file would look as if it had never existed, and the deletion would be missed.
+  write('devflow.config.json', JSON.stringify({ base: 'origin/main' }));
+  assert.equal(scan('integrity').code, 0, 'an explicit base in the config still wins');
+});

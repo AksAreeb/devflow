@@ -26,7 +26,10 @@ const config = fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile
 
 // The commit this work branched from. Everything after it is "the change".
 function baseCommit() {
-  for (const ref of [config.base, 'origin/main', 'main', 'origin/master', 'master'].filter(Boolean)) {
+  // Ask git which branch the remote treats as its default before guessing, since
+  // many repos integrate on a branch other than main.
+  const remoteDefault = tryGit('symbolic-ref', '--short', 'refs/remotes/origin/HEAD')?.trim();
+  for (const ref of [config.base, remoteDefault, 'origin/main', 'main', 'origin/master', 'master'].filter(Boolean)) {
     const base = tryGit('merge-base', 'HEAD', ref);
     if (base) return base.trim();
   }
