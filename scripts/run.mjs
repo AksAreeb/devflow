@@ -9,7 +9,8 @@
 //       add --expect-fail before the -- when the command is meant to fail
 //   record <step> <passed|failed> --artefact <path>   verdict for a judged step
 //   mark <step> <n/a|not-run> --reason <text>         step that will not run
-//   status [--gate]                         show the ledger; --gate exits 1 if not clean
+//   status [--gate] [--through <step>]      show the ledger; --gate exits 1 if any step up to
+//                                           Ship (24, or the step given) is not settled
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -209,7 +210,10 @@ const commands = {
       console.log(`${String(r.step).padStart(2)}  ${r.name.padEnd(18)} ${r.state}${r.reason ? `  (${r.reason})` : ''}`);
     }
     if (!args.includes('--gate')) return;
-    const blocking = rows.filter((r) => ['pending', 'failed', 'stale'].includes(r.state));
+    // The gate guards opening a pull request, so by default it looks at the
+    // steps up to Ship (24). Preview, promotion and follow-through come after.
+    const through = Number(option(args, '--through') ?? 24);
+    const blocking = rows.filter((r) => r.step <= through && ['pending', 'failed', 'stale'].includes(r.state));
     const skipped = rows.filter((r) => r.state === 'not run');
     if (skipped.length) console.log(`\nNot run, to be stated in the ship report: ${skipped.map((r) => r.step).join(', ')}`);
     if (!blocking.length) return console.log('\nGate: clean.');

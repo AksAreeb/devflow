@@ -14,10 +14,10 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 
 | Skill | Steps | Status |
 |-------|-------|--------|
-| `devflow:flow` | Orchestrator: tiers, ledger, gates | Slice 1 |
-| `devflow:spec` | 1 to 2 | Slice 1 |
-| `devflow:plan` | 7 | Slice 1 |
-| `devflow:ship` | 23 to 24 | Slice 1 |
+| `devflow:flow` | Orchestrator: tiers, ledger, gates | Built |
+| `devflow:spec` | 1 to 2 | Built |
+| `devflow:plan` | 7 | Built |
+| `devflow:ship` | 23 to 26 | Built |
 | `devflow:build` | 8 to 9 | Built |
 | `devflow:design` | 3 to 6 | Slice 2, not built |
 | `devflow:qa` | 10, 11, 12, 22 | Built (13 to 17 not built) |

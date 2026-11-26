@@ -137,3 +137,14 @@ test('a verdict about the code goes stale when the code changes, a verdict about
   assert.match(status, /10\s+functional-qa\s+stale/);
   assert.match(status, /1\s+spec\s+passed/, 'the spec check and approval are about a document, so they hold');
 });
+
+test('the pull request gate ignores the steps that come after the pull request', () => {
+  const { devflow, ledger } = repo();
+  devflow('init', 't', '--tier', '2');
+  for (const entry of ledger('t').entries) {
+    if (entry.step <= 24) devflow('mark', String(entry.step), 'n/a', '--reason', 'not relevant to this test');
+  }
+  assert.match(devflow('status').out, /25\s+preview-smoke\s+pending/);
+  assert.equal(devflow('status', '--gate').code, 0, 'preview and follow-through happen after the pull request');
+  assert.equal(devflow('status', '--gate', '--through', '26').code, 1, 'but the whole task is not finished');
+});

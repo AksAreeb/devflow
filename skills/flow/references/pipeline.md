@@ -40,7 +40,7 @@ Assign the highest tier that any part of the change triggers. When unsure betwee
 | 22 | Code review | 2 | always | Zero Blocking findings; the change leaves the codebase healthier | `devflow:qa`, judged by `devflow:verifier` |
 | 23 | Launch readiness | 2 | always | Checklist in `devflow:ship` complete | `devflow:ship` |
 | 24 | Ship | 1 | always | Size checked, committed, test steps reported, stopped for go-ahead | `devflow:ship` |
-| 25 | Preview and smoke | 2 | deployable app | Preview deploy smoke-tested before promotion | (none) |
-| 26 | Follow-through | 2 | always | CI green, review comments answered, postmortem if anything escaped | (`debugging:write-postmortem`) |
+| 25 | Preview and smoke | 2 | deployable app | Preview deploy smoke-tested before promotion | `devflow:ship` |
+| 26 | Follow-through | 2 | always | CI green, review comments answered, postmortem if anything escaped | `devflow:ship` |
 
 Scripted steps are decided by exit code. Steps 10 and 22, and the judgement halves of 15, 17, 20 and 21, are decided by the independent verifier. Stress steps (15, 18) run against a local or preview environment only, never production.
