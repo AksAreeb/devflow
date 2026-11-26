@@ -23,7 +23,7 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:qa` | 10, 11, 12, 22 | Built |
 | `devflow:ui` | 15 to 17 | Built |
 | `devflow:verifier` agent | Judges 10 and 22 | Built |
-| `devflow:harden` | 18 to 21 | Slice 4, not built |
+| `devflow:harden` | 18 to 20 | Built (21 not built) |
 | Hooks | Hard stops | Built |
 | Golden-task evals | Workflow evals | Not built |
 
@@ -82,6 +82,7 @@ These need no setup and compare the working tree against the base branch:
 | `newdeps` | 20 | A new direct dependency is not in `approvedDependencies`, or dependencies changed with no lockfile change |
 | `spec` | 1 | A requirement lacks a single `shall`, an explicit trigger or an example, uses a word that cannot be checked, or a section is missing |
 | `plan` | 7 | A slice has no size, is over 500 lines or mixes kinds of change, or a requirement is not covered by any slice |
+| `entrypoints` | 20 | An entry point in the task's table has a blank or placeholder cell for where auth, ownership or input validation happens |
 | `integrity` | 11 | A test was deleted, skipped or had assertions changed, a snapshot changed, or a lint or type suppression was added |
 
 ## Developing devflow

@@ -33,9 +33,9 @@ Assign the highest tier that any part of the change triggers. When unsure betwee
 | 15 | UI stress | 2 | UI changed | Zero Blocking findings on the worst-case fixture; no sideways scroll at 320 pixels; one record from a double submit | `devflow:ui`, judged by `devflow:verifier` |
 | 16 | Visual regression | 2 | UI changed | Zero unapproved screenshot diffs | `devflow:ui` |
 | 17 | Accessibility | 2 | UI changed | WCAG 2.2 AA scan clean, and the manual keyboard and screen reader pass done | `devflow:ui`, judged by `devflow:verifier` |
-| 18 | Backend stress | 3 | server code changed | p95 latency and error rate within budget under load and spike | `devflow:harden` (`performance-testing:load-test-design`) |
-| 19 | Database optimisation | 3 | queries or schema changed | Query plans reviewed, indexes cover new queries, no N+1, expand/contract migration | `devflow:harden` (none) |
-| 20 | Security review | 2 | always | No new vulnerabilities; authorisation on every route; dependency, secret and licence scans clean | `devflow:harden` (`security-review`) |
+| 18 | Backend stress | 3 | server code changed | Error rate under 1% and p95 within budget at expected peak; recovers from a spike; no duplicate side effects | `devflow:harden` |
+| 19 | Database | 3 | queries or schema changed | Each query at most 100 ms on seeded data; no query per row; catalogue checks return nothing; migrations only add | `devflow:harden` |
+| 20 | Security review | 1 | scans always; manual half when an entry point or infrastructure changed | No secrets; no critical or high findings with a fix; every entry point states its auth and ownership checks | scans built in, manual half `devflow:harden` |
 | 21 | AI evals | 3 | LLM features touched | Eval set score holds; injection red-team passes | `devflow:harden` (none) |
 | 22 | Code review | 2 | always | Zero Blocking findings; the change leaves the codebase healthier | `devflow:qa`, judged by `devflow:verifier` |
 | 23 | Launch readiness | 2 | always | Checklist in `devflow:ship` complete | `devflow:ship` |

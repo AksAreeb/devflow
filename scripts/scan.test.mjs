@@ -166,3 +166,16 @@ test('plan: every slice is sized and classed, and every requirement is covered',
   assert.equal(flagged.code, 0, flagged.out);
   assert.match(flagged.out, /Plan approval at tier 2: needed, because slice 1 is estimated at 450 lines and it changes data or schema/);
 });
+
+test('entrypoints: every entry point needs an answer in every column', () => {
+  const table = (rows) => ['| Entry point | File and line | Where the caller is identified | Where ownership or role is checked | Input validated by |',
+    '|---|---|---|---|---|', ...rows, ''].join(String.fromCharCode(10));
+  const good = table(['| POST /api/listings | app/api/listings/route.ts:12 | route.ts:14 getSession | route.ts:19 owner check | listingSchema |']);
+  assert.equal(task({ 'evidence/20-entry-points.md': good }).scan('entrypoints').code, 0);
+  const bad = table(['| deleteListing action | app/actions.ts:40 | actions.ts:42 getSession | todo | - |']);
+  const found = task({ 'evidence/20-entry-points.md': bad }).scan('entrypoints');
+  assert.equal(found.code, 1);
+  assert.match(found.out, /deleteListing action: no answer for "Where ownership or role is checked"/);
+  assert.match(found.out, /deleteListing action: no answer for "Input validated by"/);
+  assert.equal(task({ 'evidence/20-entry-points.md': table([]) }).scan('entrypoints').code, 1);
+});

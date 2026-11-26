@@ -7,6 +7,7 @@
 //   deps       known vulnerabilities, using the package manager's own audit
 //   newdeps    new direct dependencies nobody has approved, and lockfile drift
 //   integrity  weakened tests and new lint or type suppressions
+//   entrypoints  every changed entry point states its auth and ownership checks
 //   spec       the active task's spec.md is in a checkable form
 //   plan       the active task's plan.md has sized, traceable slices
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -185,6 +186,26 @@ const checks = {
       else if (SUPPRESSION.test(text)) findings.push(`${file}:${line}  new suppression: ${text.trim()}`);
     }
     return report('Test integrity', findings, 'Each of these weakens a check. Undo it, or if the spec truly requires it, mark the step not-run with the reason so the person sees it before a pull request.');
+  },
+
+  // Step 20. Missing authorization at the real entry point is the most common
+  // serious flaw in this kind of app, so every entry point must state where
+  // the caller is identified and where ownership is checked.
+  entrypoints() {
+    const { text } = taskFile(path.join('evidence', '20-entry-points.md'));
+    const rows = text.split('\n').filter((line) => line.trim().startsWith('|'))
+      .map((line) => line.trim().split('|').slice(1, -1).map((cell) => cell.trim()));
+    const header = rows.find((cells) => cells.some((c) => /entry point/i.test(c)));
+    const entries = header ? rows.slice(rows.indexOf(header) + 1).filter((cells) => !cells.every((c) => /^:?-+:?$/.test(c))) : [];
+    const findings = [];
+    if (!header) findings.push('no entry-point table found');
+    else if (!entries.length) findings.push('the table has no rows. If no entry point changed, mark the step instead of leaving the table empty.');
+    for (const cells of entries) {
+      header.forEach((column, i) => {
+        if (!cells[i] || /^(none|n\/a|na|-|\?|todo|tbd|unknown)$/i.test(cells[i])) findings.push(`${cells[0] || 'unnamed entry point'}: no answer for "${column}"`);
+      });
+    }
+    return report('Entry points', findings, 'Every entry point needs an answer in every column. A check in middleware, a layout or a page does not count for a route handler or a server action.');
   },
 
   // Step 1. A requirement the verifier cannot check is the most expensive kind
