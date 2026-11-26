@@ -1,0 +1,10 @@
+{
+  "checks": {
+    "test": "npm test",
+    "lint": null,
+    "typecheck": null,
+    "build": null,
+    "format": null
+  },
+  "approvedDependencies": []
+}

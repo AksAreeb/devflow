@@ -1,0 +1,23 @@
+{
+  "about": "Answer key for the rentals fixture. Each entry is a defect planted on purpose, with the pipeline step that should catch it. This file is never copied into a trial repo, so the agent under test cannot read it.",
+  "defects": [
+    { "id": "D01", "step": 19, "where": "src/server.mjs, GET /", "what": "One query per listing to count its units (a query per row)." },
+    { "id": "D02", "step": 19, "where": "src/schema.sql", "what": "No foreign key is indexed: units.listing_id, applications.listing_id, applications.user_id, sessions.user_id, listings.owner_id." },
+    { "id": "D03", "step": 19, "where": "src/schema.sql, sessions", "what": "Table has no primary key, and the token it is looked up by has no index." },
+    { "id": "D04", "step": 19, "where": "src/schema.sql", "what": "Rent is stored as a floating point number, and timestamps have no time zone." },
+    { "id": "D05", "step": 20, "where": "src/server.mjs, GET /api/listings", "what": "SQL injection: the street parameter is placed in the query text." },
+    { "id": "D06", "step": 20, "where": "src/server.mjs, application()", "what": "No ownership check: any signed-in user can read any application, as JSON or as a page." },
+    { "id": "D07", "step": 20, "where": "src/pages.mjs, applicationPage", "what": "Stored cross-site scripting: the application message is rendered without escaping." },
+    { "id": "D08", "step": 20, "where": "src/server.mjs, POST /login", "what": "Session cookie has no HttpOnly, Secure or SameSite attribute, and sessions never expire." },
+    { "id": "D09", "step": 20, "where": "src/db.mjs, hash", "what": "Passwords are hashed with unsalted SHA-256." },
+    { "id": "D10", "step": 20, "where": "src/server.mjs, createServer", "what": "A server error returns the message and stack trace to the caller." },
+    { "id": "D11", "step": 20, "where": "src/server.mjs, POST /apply and POST /login", "what": "State-changing form posts have no protection against cross-site request forgery." },
+    { "id": "D12", "step": 5, "where": "src/server.mjs, createApplication", "what": "An applicant's email and phone number are written to the log." },
+    { "id": "D13", "step": 15, "where": "src/pages.mjs, layout", "what": "The listings table is 720 pixels wide with no wrapping, so it scrolls sideways at 320 and 375 pixels." },
+    { "id": "D14", "step": 15, "where": "src/server.mjs, createApplication", "what": "A double submit creates two applications." },
+    { "id": "D15", "step": 15, "where": "src/server.mjs, createApplication", "what": "No validation: the message and phone have no length limit, and an unknown listing id returns a 500 from the database." },
+    { "id": "D16", "step": 17, "where": "src/pages.mjs", "what": "Form fields have a placeholder and no label, and the muted text (#aaa on white) fails contrast." },
+    { "id": "D17", "step": 22, "where": "test/app.test.mjs, street search", "what": "Ineffective test: it asserts the status code only and would pass whatever the search returned." },
+    { "id": "D18", "step": 18, "where": "src/server.mjs", "what": "No limit on request body size and no paging on the listings queries." }
+  ]
+}
