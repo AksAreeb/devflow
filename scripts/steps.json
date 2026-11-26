@@ -1,11 +1,11 @@
 [
-  { "n": 1, "name": "spec", "minTier": 1, "kind": "judged" },
+  { "n": 1, "name": "spec", "minTier": 1, "kind": "both", "checks": ["spec"], "durable": true },
   { "n": 2, "name": "explore", "minTier": 2, "kind": "judged" },
   { "n": 3, "name": "design-doc", "minTier": 3, "kind": "judged" },
   { "n": 4, "name": "api-schema-review", "minTier": 3, "kind": "both" },
   { "n": 5, "name": "privacy-review", "minTier": 3, "kind": "judged" },
   { "n": 6, "name": "threat-model", "minTier": 3, "kind": "judged" },
-  { "n": 7, "name": "plan", "minTier": 2, "kind": "judged" },
+  { "n": 7, "name": "plan", "minTier": 2, "kind": "both", "checks": ["plan"], "durable": true },
   { "n": 8, "name": "implement", "minTier": 1, "kind": "script" },
   { "n": 9, "name": "best-practices", "minTier": 2, "kind": "script", "checks": ["format"] },
   { "n": 10, "name": "functional-qa", "minTier": 1, "kind": "judged", "fresh": true },

@@ -91,3 +91,78 @@ test('deps: a repo with no lockfile has nothing to audit', () => {
   assert.equal(result.code, 0);
   assert.match(result.out, /no supported lockfile/);
 });
+
+// The spec and plan checks read the active task's files, so set one up.
+function task(files) {
+  const r = repo({ 'app.js': 'export const one = 1;\n' });
+  r.write('.devflow/current', 't\n');
+  for (const [name, content] of Object.entries(files)) r.write(`.devflow/t/${name}`, content);
+  return r;
+}
+
+const goodSpec = `# Search
+## Problem
+Tenants cannot find a listing by street name.
+## Requirements
+- R1: When a tenant submits a street name, the system shall list every active listing on that street.
+  - Example: Given two listings on King Street, when the tenant searches "king", then both appear.
+- R2: If the search text is empty, then the system shall show the message "Enter a street name".
+  - Example: Given an empty box, when the tenant presses Search, then the message appears.
+## Non-goals
+- Searching by price.
+## Unchanged behaviour
+- The listing page itself.
+## Provisional tier
+Tier 2.
+`;
+
+test('spec: accepts checkable requirements, rejects vague or unparseable ones', () => {
+  assert.equal(task({ 'spec.md': goodSpec }).scan('spec').code, 0);
+  const bad = goodSpec
+    .replace('the system shall list every active listing on that street.', 'the search should be fast.')
+    .replace('  - Example: Given an empty box, when the tenant presses Search, then the message appears.\n', '')
+    .replace('## Non-goals\n- Searching by price.\n', '');
+  const found = task({ 'spec.md': bad }).scan('spec');
+  assert.equal(found.code, 1);
+  assert.match(found.out, /R1: needs exactly one "shall", found 0/);
+  assert.match(found.out, /R1: "fast" cannot be checked/);
+  assert.match(found.out, /R2: no "Example:" line/);
+  assert.match(found.out, /missing section "## Non-goals"/);
+  assert.equal(task({ 'spec.md': 'Form: short\nChange: fix a typo\nUnchanged: layout\nCheck: read it\n' }).scan('spec').code, 0);
+  assert.equal(task({ 'spec.md': 'Form: short\nChange: fix a typo\n' }).scan('spec').code, 1);
+});
+
+const plan = (rows, extra = '') => `# Plan
+## Slices
+| # | Goal | Class | Files | Est. lines | Requirements | Depends on |
+|---|------|-------|-------|-----------|--------------|------------|
+${rows}
+## Test strategy
+Integration tests per requirement.
+## Data changes
+${extra || 'None.'}
+## Feature flag
+street-search, default off.
+## Rollback
+Turn the flag off.
+## Cost
+No new paid resources.
+`;
+
+test('plan: every slice is sized and classed, and every requirement is covered', () => {
+  const good = plan('| 1 | Search query | behaviour | lib/search.ts | 180 | R1 | none |\n| 2 | Empty state | behaviour | app/search.tsx | 90 | R2 | 1 |');
+  const ok = task({ 'spec.md': goodSpec, 'plan.md': good }).scan('plan');
+  assert.equal(ok.code, 0, ok.out);
+  assert.match(ok.out, /Plan approval at tier 2: not needed/);
+
+  const bad = plan('| 1 | Everything | behaviour and refactor | many | 620 | R1 | none |');
+  const found = task({ 'spec.md': goodSpec, 'plan.md': bad }).scan('plan');
+  assert.equal(found.code, 1);
+  assert.match(found.out, /slice 1: estimated at 620 lines/);
+  assert.match(found.out, /R2 from the spec is not covered by any slice/);
+
+  const risky = plan('| 1 | Search query | behaviour | lib/search.ts | 450 | R1, R2 | none |', 'Adds a street_index column.');
+  const flagged = task({ 'spec.md': goodSpec, 'plan.md': risky }).scan('plan');
+  assert.equal(flagged.code, 0, flagged.out);
+  assert.match(flagged.out, /Plan approval at tier 2: needed, because slice 1 is estimated at 450 lines and it changes data or schema/);
+});

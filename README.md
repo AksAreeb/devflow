@@ -79,6 +79,8 @@ These need no setup and compare the working tree against the base branch:
 | `secrets` | 20 | An added line looks like a credential. Basic patterns only; add gitleaks as a config check for depth |
 | `deps` | 20 | `npm audit`, `pnpm audit` or `pip-audit` reports a high or critical vulnerability |
 | `newdeps` | 20 | A new direct dependency is not in `approvedDependencies`, or dependencies changed with no lockfile change |
+| `spec` | 1 | A requirement lacks a single `shall`, an explicit trigger or an example, uses a word that cannot be checked, or a section is missing |
+| `plan` | 7 | A slice has no size, is over 500 lines or mixes kinds of change, or a requirement is not covered by any slice |
 | `integrity` | 11 | A test was deleted, skipped or had assertions changed, a snapshot changed, or a lint or type suppression was added |
 
 ## Developing devflow
@@ -91,11 +93,12 @@ node --test scripts/run.test.mjs scripts/scan.test.mjs hooks/guard.test.mjs
 
 ## Hard stops
 
-Four rules are enforced by hooks, so they hold even if an agent ignores the skills:
+Five rules are enforced by hooks, so they hold even if an agent ignores the skills:
 
 | Rule | Behaviour |
 |------|-----------|
 | Opening a pull request | Refused until the ledger is clean, then asks you to confirm |
+| Recording the spec as approved, or the plan at tier 3 | Asks you to confirm |
 | Merging | Always refused, locally and through `gh` |
 | Editing a committed test, snapshot, CI workflow or `devflow.config.json` during a task | Asks you first |
 | Editing `ledger.json` by hand | Always refused |

@@ -106,6 +106,19 @@ function shellCommand(command, root) {
   if (MERGE.some((pattern) => pattern.test(command))) {
     decide('deny', 'devflow: merging belongs to the person, not the agent. Do not merge locally or on GitHub. Report that the branch is ready and stop.');
   }
+  // Approving the spec or the plan is the person's call, so recording either as
+  // passed puts the question in front of them.
+  const approval = /run\.mjs["']?\s+record\s+(1|7)\s+passed\b/.exec(command);
+  const task = approval && activeTask(root);
+  if (task) {
+    // The spec always needs the person. The plan needs them at tier 3; at tier 2
+    // the plan skill decides whether to stop, from what the plan check reports.
+    const tier = JSON.parse(fs.readFileSync(path.join(root, '.devflow', task, 'ledger.json'), 'utf8')).tier;
+    const what = approval[1] === '1' ? 'the spec' : 'the plan';
+    if (approval[1] === '1' || tier === 3) {
+      decide('ask', `devflow: this records ${what} as approved. Approve only if you have read it and agree with it.`);
+    }
+  }
   if (!PR_CREATE.test(command)) return;
   if (!activeTask(root)) decide('ask', 'devflow: opening a pull request needs the person\'s go-ahead.');
   const gate = ledgerStatus(root, '--gate');

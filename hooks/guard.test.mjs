@@ -63,6 +63,8 @@ test('opening a pull request is denied until the ledger is clean, then asks', ()
   assert.match(blocked.permissionDecisionReason, /step 11 regression is pending/);
 
   fs.writeFileSync(path.join(dir, '.devflow', 't', 'note.md'), 'evidence\n');
+  fs.writeFileSync(path.join(dir, '.devflow', 't', 'spec.md'), ['Form: short', 'Change: fix a typo', 'Unchanged: everything else', 'Check: read the page', ''].join(String.fromCharCode(10)));
+  devflow('run', '1', '--builtin', 'spec');
   for (const step of ['1', '10', '24']) devflow('record', step, 'passed', '--artefact', '.devflow/t/note.md');
   devflow('run', '8', '--label', 'ok', ...pass);
   for (const check of ['secrets', 'deps', 'newdeps']) devflow('run', '20', '--builtin', check);
@@ -70,6 +72,21 @@ test('opening a pull request is denied until the ledger is clean, then asks', ()
   const ready = bash('gh pr create --fill');
   assert.equal(ready.permissionDecision, 'ask');
   assert.match(ready.permissionDecisionReason, /Not run, to be stated in the ship report: 11/);
+});
+
+test('recording the spec or plan as approved asks the person', () => {
+  const { devflow, bash } = repo();
+  const record = (step) => bash(`node "/plugin/scripts/run.mjs" record ${step} passed --artefact x.md`);
+  assert.equal(record(1).permissionDecision, undefined, 'no task active');
+  devflow('init', 't', '--tier', '3');
+  assert.equal(record(1).permissionDecision, 'ask');
+  assert.match(record(7).permissionDecisionReason, /the plan/);
+  assert.equal(record(22).permissionDecision, undefined, 'the verifier records its own verdicts');
+  const tierTwo = repo();
+  tierTwo.devflow('init', 't', '--tier', '2');
+  const planAtTierTwo = tierTwo.bash('node "/plugin/scripts/run.mjs" record 7 passed --artefact x.md');
+  assert.equal(planAtTierTwo.permissionDecision, undefined, 'a tier 2 plan is not gated by the hook');
+  assert.equal(bash('node "/plugin/scripts/run.mjs" record 1 failed --artefact x.md').permissionDecision, undefined);
 });
 
 test('committed tests need approval to edit during a task, new tests and source do not', () => {

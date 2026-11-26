@@ -27,7 +27,7 @@ The ledger is kept by the plugin's capture script, `scripts/run.mjs`, so that it
 |---------|-----------|
 | `init <task-slug> --tier <1\|2\|3>` | Create the ledger once the tier is set. Also keeps `.devflow/` out of commits. |
 | `run <step> --check <name>` | Run a check named in the repo's `devflow.config.json` (for example `test`, `lint`, `typecheck`, `build`) and record its exit code and output. |
-| `run <step> --builtin <name>` | Run one of devflow's own checks: `secrets`, `deps` and `newdeps` for step 20, `integrity` for step 11. |
+| `run <step> --builtin <name>` | Run one of devflow's own checks: `spec` for step 1, `plan` for step 7, `integrity` for step 11, and `secrets`, `deps` and `newdeps` for step 20. |
 | `run <step> --label <name> -- <command>` | Run and record any other command for a step. |
 | `record <step> <passed\|failed> --artefact <path>` | Give the verdict for a step that needs judgement, pointing at the evidence file. |
 | `mark <step> <n/a\|not-run> --reason "<why>"` | Say a step does not apply, or could not run. |
@@ -66,9 +66,10 @@ Tier 1 changes skip Plan and the verifier: confirm the spec in one line, build, 
 
 Stop and wait for the user at three points: after the spec, after the plan, and before a PR is opened. Approval at one gate does not carry to the next. Between gates, keep working without checking in.
 
-Four rules are enforced by the plugin's hooks, whatever this skill says, so plan around them instead of trying them:
+Five rules are enforced by the plugin's hooks, whatever this skill says, so plan around them instead of trying them:
 
 - `gh pr create` is refused while `status --gate` is not clean. Once clean, it asks the user.
+- Recording the spec as approved asks the user. So does recording the plan at tier 3.
 - Merging is always refused, locally and on GitHub.
 - Editing a committed test, snapshot, CI workflow or `devflow.config.json` during a task asks the user first. If a test conflicts with the spec, stop and report the conflict; do not change the test to get a pass.
 - `ledger.json` cannot be edited directly.

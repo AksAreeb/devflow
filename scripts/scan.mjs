@@ -7,6 +7,8 @@
 //   deps       known vulnerabilities, using the package manager's own audit
 //   newdeps    new direct dependencies nobody has approved, and lockfile drift
 //   integrity  weakened tests and new lint or type suppressions
+//   spec       the active task's spec.md is in a checkable form
+//   plan       the active task's plan.md has sized, traceable slices
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,6 +59,34 @@ function changes() {
   }
   return { base, added, removed, status };
 }
+
+// The active task's working file, for the checks that read the spec or plan.
+function taskFile(name) {
+  const pointer = path.join(root, '.devflow', 'current');
+  if (!fs.existsSync(pointer)) {
+    console.error('devflow scan: no active task. Start one with: init <task> --tier <n>');
+    process.exit(2);
+  }
+  const dir = path.join(root, '.devflow', fs.readFileSync(pointer, 'utf8').trim());
+  const file = path.join(dir, name);
+  if (!fs.existsSync(file)) {
+    console.error(`devflow scan: ${path.relative(root, file)} does not exist yet`);
+    process.exit(1);
+  }
+  return { text: fs.readFileSync(file, 'utf8'), dir };
+}
+
+// Requirements are list items of the form "- R1: text", each with an indented "Example:" line.
+function parseRequirements(text) {
+  const requirements = [];
+  for (const line of text.split('\n')) {
+    const requirement = /^\s*[-*]\s*\*{0,2}(R\d+)\*{0,2}[:.]\s*(.+)$/.exec(line);
+    if (requirement) requirements.push({ id: requirement[1], text: requirement[2].trim(), example: false });
+    else if (/^\s+[-*]\s*\*{0,2}Example\*{0,2}:/i.test(line) && requirements.length) requirements[requirements.length - 1].example = true;
+  }
+  return requirements;
+}
+const VAGUE = /\b(fast|quick|quickly|slow|easy|easily|simple|secure|securely|robust|efficient|user-friendly|intuitive|seamless|appropriate|reasonable|scalable|reliable|properly)\b/i;
 
 function report(title, findings, advice) {
   if (!findings.length) {
@@ -155,6 +185,75 @@ const checks = {
       else if (SUPPRESSION.test(text)) findings.push(`${file}:${line}  new suppression: ${text.trim()}`);
     }
     return report('Test integrity', findings, 'Each of these weakens a check. Undo it, or if the spec truly requires it, mark the step not-run with the reason so the person sees it before a pull request.');
+  },
+
+  // Step 1. A requirement the verifier cannot check is the most expensive kind
+  // of mistake, so the spec has to be in a form a machine can at least parse.
+  spec() {
+    const { text } = taskFile('spec.md');
+    const findings = [];
+    if (/^Form:\s*short/im.test(text)) {
+      for (const line of ['Change', 'Unchanged', 'Check']) {
+        if (!new RegExp(`^${line}:\\s*\\S`, 'm').test(text)) findings.push(`short form is missing a "${line}:" line`);
+      }
+      return report('Spec', findings, 'A short-form spec needs three lines: Change, Unchanged and Check.');
+    }
+    const sections = { Problem: 'Problem', Requirements: 'Requirements', 'Non-goals': 'Non-goals', 'Unchanged behaviour': 'Unchanged behaviou?r', 'Provisional tier': 'Provisional tier' };
+    for (const [label, pattern] of Object.entries(sections)) {
+      if (!new RegExp(`^##\\s+${pattern}`, 'im').test(text)) findings.push(`missing section "## ${label}"`);
+    }
+    const requirements = parseRequirements(text);
+    if (!requirements.length) findings.push('no requirements found. Write each as "- R1: ... the system shall ..."');
+    for (const r of requirements) {
+      const shalls = (r.text.match(/\bshall\b/gi) ?? []).length;
+      if (shalls !== 1) findings.push(`${r.id}: needs exactly one "shall", found ${shalls}. Split it or rewrite it.`);
+      if (!/^(the|when|while|where|if)\b/i.test(r.text)) findings.push(`${r.id}: start with The, When, While, Where or If, so the trigger is explicit`);
+      const vague = r.text.match(VAGUE);
+      if (vague && !/\d/.test(r.text)) findings.push(`${r.id}: "${vague[0]}" cannot be checked. Give a number or a concrete condition.`);
+      if (!r.example) findings.push(`${r.id}: no "Example:" line under it`);
+    }
+    return report('Spec', findings, 'Fix each line, then run this check again before asking for approval.');
+  },
+
+  // Step 7. Sizes and traceability are checked before any code exists, because
+  // an oversized slice found mid-build has to be untangled by hand.
+  plan() {
+    const { text, dir } = taskFile('plan.md');
+    const findings = [];
+    for (const section of ['Slices', 'Test strategy', 'Feature flag', 'Rollback', 'Cost']) {
+      if (!new RegExp(`^##\\s+${section}`, 'im').test(text)) findings.push(`missing section "## ${section}"`);
+    }
+    const rows = text.split('\n').filter((line) => line.trim().startsWith('|'))
+      .map((line) => line.trim().split('|').slice(1, -1).map((cell) => cell.trim()));
+    const header = rows.find((cells) => cells.some((c) => /est/i.test(c)) && cells.some((c) => /class/i.test(c)));
+    const slices = header ? rows.filter((cells) => /^\d+$/.test(cells[0])) : [];
+    if (!header) findings.push('no slice table found. It needs "Class", "Est. lines" and "Requirements" columns.');
+    else if (!slices.length) findings.push('the slice table has no rows');
+    const cell = (cells, pattern) => cells[header.findIndex((c) => pattern.test(c))] ?? '';
+    const covered = new Set();
+    const reasons = [];
+    for (const cells of slices) {
+      const id = cells[0];
+      const estimate = Number(cell(cells, /est/i));
+      if (!Number.isFinite(estimate) || estimate <= 0) findings.push(`slice ${id}: no line estimate`);
+      else if (estimate > 500) findings.push(`slice ${id}: estimated at ${estimate} lines. The ceiling is 500, so split it.`);
+      else if (estimate > 400) reasons.push(`slice ${id} is estimated at ${estimate} lines`);
+      if (!/^(behaviou?r|refactor|mechanical)/i.test(cell(cells, /class/i))) findings.push(`slice ${id}: class must be behaviour, refactor or mechanical, one per slice`);
+      for (const ref of cell(cells, /require/i).match(/R\d+/g) ?? []) covered.add(ref);
+    }
+    const specFile = path.join(dir, 'spec.md');
+    if (fs.existsSync(specFile)) {
+      for (const r of parseRequirements(fs.readFileSync(specFile, 'utf8'))) {
+        if (!covered.has(r.id)) findings.push(`${r.id} from the spec is not covered by any slice`);
+      }
+    }
+    const data = /^##\s+Data changes[^\n]*\n+([^\n#]*)/im.exec(text)?.[1].trim();
+    if (data && !/^none\b/i.test(data)) reasons.push('it changes data or schema');
+    if (/new dependenc/i.test(text) && !/no new dependenc/i.test(text)) reasons.push('it adds a dependency');
+    console.log(reasons.length
+      ? `Plan approval at tier 2: needed, because ${reasons.join(' and ')}.`
+      : 'Plan approval at tier 2: not needed. Tell the person the plan and proceed.');
+    return report('Plan', findings, 'Fix each line, then run this check again.');
   },
 };
 

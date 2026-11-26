@@ -98,11 +98,11 @@ test('judged steps need an artefact, script steps cannot be recorded by hand', (
   const { dir, devflow } = repo();
   devflow('init', 't', '--tier', '1');
   assert.equal(devflow('record', '8', 'passed', '--artefact', 'app.txt').code, 2);
-  assert.equal(devflow('record', '1', 'passed', '--artefact', 'missing.md').code, 2);
+  assert.equal(devflow('record', '24', 'passed', '--artefact', 'missing.md').code, 2);
   fs.mkdirSync(path.join(dir, '.devflow', 't'), { recursive: true });
   fs.writeFileSync(path.join(dir, '.devflow', 't', 'spec.md'), '# spec\n');
-  assert.equal(devflow('record', '1', 'passed', '--artefact', '.devflow/t/spec.md').code, 0);
-  assert.match(devflow('status').out, /1\s+spec\s+passed/);
+  assert.equal(devflow('record', '24', 'passed', '--artefact', '.devflow/t/spec.md').code, 0);
+  assert.match(devflow('status').out, /24\s+ship\s+passed/);
 });
 
 test('marking a step needs a reason, and the gate is clean only when nothing is pending', () => {
@@ -111,6 +111,8 @@ test('marking a step needs a reason, and the gate is clean only when nothing is 
   assert.equal(devflow('mark', '10', 'n/a').code, 2);
   assert.equal(devflow('status', '--gate').code, 1);
   fs.writeFileSync(path.join(dir, '.devflow', 't', 'note.md'), 'evidence\n');
+  fs.writeFileSync(path.join(dir, '.devflow', 't', 'spec.md'), ['Form: short', 'Change: fix a typo', 'Unchanged: everything else', 'Check: read the page', ''].join(String.fromCharCode(10)));
+  devflow('run', '1', '--builtin', 'spec');
   for (const step of ['1', '24']) devflow('record', step, 'passed', '--artefact', '.devflow/t/note.md');
   devflow('run', '8', '--label', 'green', ...pass);
   devflow('mark', '10', 'n/a', '--reason', 'docs only');
@@ -125,11 +127,13 @@ test('a verdict about the code goes stale when the code changes, a verdict about
   const { dir, devflow } = repo();
   devflow('init', 't', '--tier', '1');
   fs.writeFileSync(path.join(dir, '.devflow', 't', 'note.md'), 'evidence');
+  fs.writeFileSync(path.join(dir, '.devflow', 't', 'spec.md'), ['Form: short', 'Change: fix a typo', 'Unchanged: everything else', 'Check: read the page', ''].join(String.fromCharCode(10)));
+  devflow('run', '1', '--builtin', 'spec');
   devflow('record', '1', 'passed', '--artefact', '.devflow/t/note.md');
   devflow('record', '10', 'passed', '--artefact', '.devflow/t/note.md');
   assert.match(devflow('status').out, /10\s+functional-qa\s+passed/);
   fs.writeFileSync(path.join(dir, 'app.txt'), 'changed after QA');
   const status = devflow('status').out;
   assert.match(status, /10\s+functional-qa\s+stale/);
-  assert.match(status, /1\s+spec\s+passed/);
+  assert.match(status, /1\s+spec\s+passed/, 'the spec check and approval are about a document, so they hold');
 });

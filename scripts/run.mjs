@@ -98,7 +98,9 @@ function evaluate(entry, tree, config) {
     // exists) passes by failing, and is a record of that moment, so it never goes stale.
     if (entry.runs.some((r) => (r.exitCode !== 0) !== Boolean(r.expectFail))) results.push('failed');
     else if (!entry.runs.length || required.some((c) => !labels.includes(c))) results.push('pending');
-    else if (entry.runs.some((r) => !r.expectFail && r.tree !== tree)) results.push('stale');
+    // Steps marked durable check a document (the spec, the plan), not the code,
+    // so writing code afterwards does not invalidate them.
+    else if (!STEPS.find((s) => s.n === entry.step).durable && entry.runs.some((r) => !r.expectFail && r.tree !== tree)) results.push('stale');
     else results.push('passed');
   }
   if (entry.kind !== 'script') {
