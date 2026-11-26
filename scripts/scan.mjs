@@ -363,6 +363,39 @@ const checks = {
     ].join('\n'));
   },
 
+  // Step 3. The value of a design doc is in what was weighed and turned down,
+  // so the check looks for the alternatives and for questions left open.
+  design() {
+    const text = taskFile('design.md').text.replace(/\r\n/g, '\n');
+    const findings = [];
+    const section = (name) => {
+      const match = new RegExp(`^##\\s+${name}[^\\n]*\\n([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, 'im').exec(text);
+      return match ? match[1] : null;
+    };
+    for (const name of ['Context', 'Goals', 'Non-goals', 'Design', 'Alternatives', 'Drawbacks', 'Open questions']) {
+      if (section(name) === null) findings.push(`missing section "## ${name}"`);
+      else if (!section(name).trim()) findings.push(`section "## ${name}" is empty`);
+    }
+    const alternatives = (section('Alternatives') ?? '').split(/^###\s+/m).slice(1);
+    if (alternatives.length < 2) findings.push(`needs at least two alternatives, each under its own "### " heading, found ${alternatives.length}`);
+    for (const alternative of alternatives) {
+      const title = alternative.split('\n')[0].trim();
+      if (!/^\s*\*{0,2}Rejected because\*{0,2}:?\s*\S/im.test(alternative)) findings.push(`alternative "${title}" has no "Rejected because" line`);
+    }
+    if (alternatives.length && !alternatives.some((a) => /do nothing|simplest/i.test(a.split('\n')[0]))) {
+      findings.push('one alternative must be "Do nothing" or "Simplest possible", so the cost of the design is weighed against not building it');
+    }
+    const open = section('Open questions') ?? '';
+    const before = /^###\s+Before coding[^\n]*\n([\s\S]*?)(?=^###\s|(?![\s\S]))/im.exec(open);
+    if (!before) findings.push('"## Open questions" needs a "### Before coding" part and a "### During" part');
+    else if (before[1].split('\n').some((line) => /^\s*[-*]\s+(?!none\b)\S/i.test(line))) {
+      findings.push('a "Before coding" question is still open. Answer it with the person, or move it to "During" if the build can start without it.');
+    }
+    const pages = text.split(/\s+/).length / 500;
+    if (pages > 3) findings.push(`about ${Math.ceil(pages)} pages long. Keep it to three, or the task is several designs.`);
+    return report('Design doc', findings, 'Fix each line, then run this check again. The design skill (devflow:design) has the template.');
+  },
+
   // Step 7. Sizes and traceability are checked before any code exists, because
   // an oversized slice found mid-build has to be untangled by hand.
   plan() {

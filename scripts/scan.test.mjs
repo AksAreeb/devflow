@@ -199,3 +199,47 @@ test('the base is the remote default branch, not an assumed main', () => {
   write('devflow.config.json', JSON.stringify({ base: 'origin/main' }));
   assert.equal(scan('integrity').code, 0, 'an explicit base in the config still wins');
 });
+
+const goodDesign = `# Saved searches
+## Context
+Tenants repeat the same search every visit.
+## Goals
+- A tenant can save a search and run it again.
+## Non-goals
+- Email alerts.
+## Design
+One table, saved_search, keyed by tenant. The search page reads it on load.
+## Alternatives
+### Do nothing
+Tenants keep retyping the search.
+Rejected because: it is the most common complaint in support tickets.
+### Store searches in the browser
+No table and no migration.
+Rejected because: a tenant loses them on a second device, which fails R2.
+## Drawbacks
+One more table to migrate and back up.
+## Open questions
+### Before coding
+- None.
+### During
+- What the empty state says.
+`;
+
+test('design: needs real alternatives with reasons and no question left open before coding', () => {
+  const clean = task({ 'design.md': goodDesign }).scan('design');
+  assert.equal(clean.code, 0, clean.out);
+  assert.equal(task({ 'design.md': goodDesign.replaceAll('\n', '\r\n') }).scan('design').code, 0, 'Windows line endings');
+
+  const bad = goodDesign
+    .replace('### Do nothing\nTenants keep retyping the search.\nRejected because: it is the most common complaint in support tickets.\n', '')
+    .replace('Rejected because: a tenant loses them on a second device, which fails R2.\n', '')
+    .replace('## Drawbacks\nOne more table to migrate and back up.\n', '')
+    .replace('- None.', '- Which table holds the tenant id?');
+  const found = task({ 'design.md': bad }).scan('design');
+  assert.equal(found.code, 1);
+  assert.match(found.out, /missing section "## Drawbacks"/);
+  assert.match(found.out, /at least two alternatives, each under its own "### " heading, found 1/);
+  assert.match(found.out, /alternative "Store searches in the browser" has no "Rejected because" line/);
+  assert.match(found.out, /one alternative must be "Do nothing" or "Simplest possible"/);
+  assert.match(found.out, /a "Before coding" question is still open/);
+});

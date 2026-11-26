@@ -19,7 +19,7 @@ The full step list and tier rules live in [skills/flow/references/pipeline.md](s
 | `devflow:plan` | 7 | Built |
 | `devflow:ship` | 23 to 26 | Built |
 | `devflow:build` | 8 to 9 | Built |
-| `devflow:design` | 3 to 6 | Slice 2, not built |
+| `devflow:design` | 3 to 6 | Built |
 | `devflow:qa` | 10 to 14, 22 | Built |
 | `devflow:ui` | 15 to 17 | Built |
 | `devflow:repo` | Repo rules: policy, agent files, branch policy, docs layout | Built |

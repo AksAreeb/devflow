@@ -27,7 +27,7 @@ The ledger is kept by the plugin's capture script, `scripts/run.mjs`, so that it
 |---------|-----------|
 | `init <task-slug> --tier <1\|2\|3>` | Create the ledger once the tier is set. Also keeps `.devflow/` out of commits. |
 | `run <step> --check <name>` | Run a check named in the repo's `devflow.config.json` (for example `test`, `lint`, `typecheck`, `build`) and record its exit code and output. |
-| `run <step> --builtin <name>` | Run one of devflow's own checks: `spec` for step 1, `plan` for step 7, `integrity` for step 11, and `secrets`, `deps` and `newdeps` for step 20. |
+| `run <step> --builtin <name>` | Run one of devflow's own checks: `spec` for step 1, `design` for step 3, `plan` for step 7, `integrity` for step 11, and `secrets`, `deps` and `newdeps` for step 20. |
 | `run <step> --label <name> -- <command>` | Run and record any other command for a step. |
 | `record <step> <passed\|failed> --artefact <path>` | Give the verdict for a step that needs judgement, pointing at the evidence file. |
 | `mark <step> <n/a\|not-run> --reason "<why>"` | Say a step does not apply, or could not run. |
@@ -44,11 +44,12 @@ If `.devflow/current` already points at this task, resume from `status` instead 
 Each stage has its own skill, named in brackets below. Load that skill with the Skill tool before you start the stage, even for a small change. This file gives the order and the rules; the stage skills hold the templates, commands and pass bars, and working without them means guessing at formats the checks will reject.
 
 1. **Spec** (`devflow:spec`). Ends with a provisional tier. Stop for the user's approval.
-2. **Plan** (`devflow:plan`), tier 2 and up. Confirms the tier and slices the work. Stop for approval.
-3. **Build** one slice at a time (`devflow:build`). Tests are written first and shown failing.
-4. **Verify** the slice (`devflow:qa`): scripted checks, then the independent verifier. Harden steps follow for tier 3.
-5. **Ship** the slice (`devflow:ship`). Stop before opening a PR.
-6. Repeat 3 to 5 for the next slice.
+2. **Design** (`devflow:design`), tier 3 only. A design doc with alternatives, then the API, privacy and threat reviews that apply.
+3. **Plan** (`devflow:plan`), tier 2 and up. Confirms the tier and slices the work. Stop for approval.
+4. **Build** one slice at a time (`devflow:build`). Tests are written first and shown failing.
+5. **Verify** the slice (`devflow:qa`): scripted checks, then the independent verifier. Harden steps follow for tier 3.
+6. **Ship** the slice (`devflow:ship`). Stop before opening a PR.
+7. Repeat 4 to 6 for the next slice.
 
 Tier 1 changes skip Plan and the verifier: confirm the spec in one line, build, run the scripted checks, let the user check the result by hand, ship.
 
